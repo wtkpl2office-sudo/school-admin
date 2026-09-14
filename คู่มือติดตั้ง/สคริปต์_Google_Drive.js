@@ -160,57 +160,98 @@ function extractYearFromText(text) {
 
 /**
  * 🚀 ฟังก์ชันจัดระเบียบไฟล์ที่มีอยู่เดิมทั้งหมด (Auto-Organize Migration)
+ * แก้ไขปัญหา Timeout: จำกัดขอบเขตค้นหาเฉพาะโฟลเดอร์สารบรรณ และมี Time Guard 4 นาที
  * สามารถกดรันจากใน Apps Script Editor หรือเรียกผ่าน ?action=organize
  */
 function organizeExistingFiles() {
+  var startTime = new Date().getTime();
+  var MAX_RUNTIME_MS = 240000; // 4 นาที (ปลอดภัย ป้องกัน Google 6-minute timeout)
+  var timeLimitReached = false;
+
   var rootFolder = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER_NAME);
-  var foldersToCheck = [
-    rootFolder,
-    DriveApp.getRootFolder() // ค้นหาโฟลเดอร์ SchoolAdminDocs เก่า
-  ];
   
-  // ตรวจสอบโฟลเดอร์เก่าชื่อ SchoolAdminDocs หรือ incoming
-  var legacyFolders = DriveApp.getFoldersByName('SchoolAdminDocs');
-  while (legacyFolders.hasNext()) {
-    foldersToCheck.push(legacyFolders.next());
+  // รวบรวมเฉพาะโฟลเดอร์สารบรรณเก่าเพื่อทำการย้าย (ไม่กวาดทั้งไดรฟ์เด็ดขาด)
+  var foldersToProcess = [];
+  
+  // 1. ไฟล์ที่อาจหลงอยู่ในชั้นนอกสุดของ rootFolder
+  foldersToProcess.push(rootFolder);
+  
+  // 2. ค้นหาโฟลเดอร์เก่าชื่อ SchoolAdminDocs
+  var legacy1 = DriveApp.getFoldersByName('SchoolAdminDocs');
+  while (legacy1.hasNext()) {
+    var f = legacy1.next();
+    if (f.getId() !== rootFolder.getId()) {
+      foldersToProcess.push(f);
+      var subFolders = f.getFolders();
+      while (subFolders.hasNext()) {
+        foldersToProcess.push(subFolders.next());
+      }
+    }
   }
-  var incomingFolders = DriveApp.getFoldersByName('incoming');
-  while (incomingFolders.hasNext()) {
-    foldersToCheck.push(incomingFolders.next());
+  
+  // 3. ค้นหาโฟลเดอร์เก่าชื่อ incoming, outgoing, orders, memos, reports
+  var legacyNames = ['incoming', 'outgoing', 'orders', 'memos', 'reports', 'temp_docs'];
+  for (var n = 0; n < legacyNames.length; n++) {
+    var folIter = DriveApp.getFoldersByName(legacyNames[n]);
+    while (folIter.hasNext()) {
+      var lf = folIter.next();
+      foldersToProcess.push(lf);
+    }
   }
 
   var movedCount = 0;
+  var skippedCount = 0;
   var processedFileIds = {};
 
-  for (var f = 0; f < foldersToCheck.length; f++) {
-    var curFolder = foldersToCheck[f];
-    var files = curFolder.getFiles();
+  for (var i = 0; i < foldersToProcess.length; i++) {
+    if (timeLimitReached) break;
     
+    var curFolder = foldersToProcess[i];
+    var curFolderName = curFolder.getName();
+    
+    // ข้ามโฟลเดอร์ปลายทางที่จัดระเบียบเรียบร้อยแล้ว (เช่น "01_หนังสือรับ", "02_หนังสือส่ง", ฯลฯ)
+    if (curFolderName.indexOf('01_') === 0 || curFolderName.indexOf('02_') === 0 || 
+        curFolderName.indexOf('03_') === 0 || curFolderName.indexOf('04_') === 0 ||
+        curFolderName.indexOf('05_') === 0 || curFolderName.indexOf('06_') === 0 ||
+        curFolderName.indexOf('07_') === 0) {
+      continue;
+    }
+    
+    var files = curFolder.getFiles();
     while (files.hasNext()) {
+      if (new Date().getTime() - startTime > MAX_RUNTIME_MS) {
+        timeLimitReached = true;
+        break;
+      }
+      
       var file = files.next();
       var fileId = file.getId();
       
-      // ข้ามไฟล์ที่ประมวลผลไปแล้ว
       if (processedFileIds[fileId]) continue;
       processedFileIds[fileId] = true;
       
       var fileName = file.getName();
-      // ข้ามหากไม่ใช่ไฟล์เอกสาร (PDF, รูปภาพ)
-      if (!fileName.endsWith('.pdf') && !fileName.endsWith('.png') && !fileName.endsWith('.jpg') && !fileName.endsWith('.jpeg')) {
+      // ข้ามหากไม่ใช่ไฟล์เอกสารหรือรูปภาพ
+      var lowerName = fileName.toLowerCase();
+      var isDoc = lowerName.endsWith('.pdf') || lowerName.endsWith('.png') || 
+                  lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ||
+                  lowerName.endsWith('.doc') || lowerName.endsWith('.docx');
+      if (!isDoc) {
+        skippedCount++;
         continue;
       }
       
-      // ตรวจหาปี พ.ศ. จากชื่อไฟล์ หรือ วันที่สร้างไฟล์
+      // ดึงปี พ.ศ. จากชื่อไฟล์ หรือวันที่สร้างไฟล์
       var year = extractYearFromText(fileName);
       if (!year) {
         var createdDate = file.getDateCreated();
         year = createdDate.getFullYear() + 543;
       }
       
-      // หาโฟลเดอร์หมวดหมู่ปลายทาง
-      var destFolder = getTargetCategoryFolder(year, '', fileName);
+      // หาโฟลเดอร์เป้าหมายตามปีและหมวดหมู่
+      var destFolder = getTargetCategoryFolder(year, curFolderName, fileName);
       
-      // ถ้าย้ายไม่ได้อยู่ในโฟลเดอร์ปลายทางอยู่แล้ว ให้สั่งย้าย
+      // ตรวจสอบว่าไฟล์อยู่ใน destFolder อยู่แล้วหรือไม่
       var parentFolders = file.getParents();
       var alreadyInDest = false;
       while (parentFolders.hasNext()) {
@@ -223,14 +264,27 @@ function organizeExistingFiles() {
       if (!alreadyInDest) {
         file.moveTo(destFolder);
         movedCount++;
+        Logger.log("✅ ย้ายไฟล์: " + fileName + " -> " + destFolder.getName());
+      } else {
+        skippedCount++;
       }
     }
   }
+
+  var msg = "";
+  if (timeLimitReached) {
+    msg = "⏳ ย้ายไฟล์ในรอบนี้แล้ว " + movedCount + " ไฟล์ (ระบบหยุดพักอัตโนมัติที่ 4 นาทีเพื่อป้องกัน timeout) หากยังมีไฟล์เหลืออยู่ สามารถกดรันอีกครั้งได้ทันทีค่ะ";
+  } else {
+    msg = "🎉 จัดระเบียบไฟล์ทั้งหมดสำเร็จสมบูรณ์! ย้ายทั้งหมด " + movedCount + " ไฟล์ (ไฟล์ที่อยู่ถูกที่แล้ว " + skippedCount + " ไฟล์)";
+  }
   
+  Logger.log(msg);
   return {
-    status: 'success',
+    status: timeLimitReached ? 'partial_success' : 'success',
     movedFilesCount: movedCount,
-    message: 'ย้ายและจัดหมวดหมู่ไฟล์สำเร็จจำนวน ' + movedCount + ' ไฟล์'
+    skippedFilesCount: skippedCount,
+    hasMore: timeLimitReached,
+    message: msg
   };
 }
 
