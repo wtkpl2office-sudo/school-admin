@@ -256,12 +256,9 @@ function organizeExistingFiles() {
     }
   }
 
-  var msg = "";
-  if (timeLimitReached) {
-    msg = "ย้ายไฟล์ในรอบนี้แล้ว " + movedCount + " ไฟล์ (ระบบหยุดพักอัตโนมัติที่ 4 นาทีเพื่อป้องกัน timeout) หากยังมีไฟล์เหลืออยู่ สามารถกดรันอีกครั้งได้ทันที";
-  } else {
-    msg = "จัดระเบียบไฟล์ทั้งหมดสำเร็จสมบูรณ์ ย้ายทั้งหมด " + movedCount + " ไฟล์ (ไฟล์ที่อยู่ถูกที่แล้ว " + skippedCount + " ไฟล์)";
-  }
+  var msg = timeLimitReached
+    ? ("ย้ายรอบนี้แล้ว " + movedCount + " ไฟล์ (กดรันต่อได้เลย)")
+    : ("จัดระเบียบเสร็จสมบูรณ์ ย้าย " + movedCount + " ไฟล์ ข้าม " + skippedCount + " ไฟล์");
   
   Logger.log(msg);
   return {
