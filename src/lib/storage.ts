@@ -2,7 +2,10 @@ import { supabase, getActiveSchoolProfile } from './supabase';
 
 function getGasUrl(): string {
   const profile = getActiveSchoolProfile();
-  return profile?.gasUrl || import.meta.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbw52uo8upPX6SiZ_W4dD9MUrocA3DkZm3XnE-eU4uE3vvOtOAK4VhXcLIf71PGVsvxj/exec';
+  return profile?.gasUrl || 
+         (typeof window !== 'undefined' ? localStorage.getItem('custom_gas_url') : null) || 
+         import.meta.env.VITE_GAS_URL || 
+         'https://script.google.com/macros/s/AKfycbzvITJ2HwYAB3tlDDbnjv52b97goxigd2KzNGSIu3jfnlNIpZyNB4hC2nCg_0lxek9E/exec';
 }
 
 /**

@@ -1302,7 +1302,7 @@ async function executeDocAssignment(docId: string, teacherId: string, instructio
           }
 
           // ดำเนินการอัปโหลดขึ้น Google Drive ผ่าน Google Apps Script (GAS)
-          const gasUrl = process.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbw52uo8upPX6SiZ_W4dD9MUrocA3DkZm3XnE-eU4uE3vvOtOAK4VhXcLIf71PGVsvxj/exec';
+          const gasUrl = process.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbzvITJ2HwYAB3tlDDbnjv52b97goxigd2KzNGSIu3jfnlNIpZyNB4hC2nCg_0lxek9E/exec';
           const base64 = Buffer.from(stampedBytes).toString('base64');
           const sanitizedSubject = (doc.subject || '').replace(/[\/\\?%*:|"<>]/g, '-').slice(0, 50);
           const finalFileName = `${doc.doc_number || 'doc'}_เรื่อง_${sanitizedSubject || 'untitled'}.pdf`;

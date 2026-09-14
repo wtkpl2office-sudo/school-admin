@@ -159,7 +159,7 @@ async function uploadTelegramFileToSupabase(botToken: string, fileId: string, cu
     const contentType = fileRes.headers.get('content-type') || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg');
 
     // 1. พยายามอัปโหลดไป Google Drive ผ่าน Google Apps Script (GAS) ก่อน
-    const gasUrl = settings?.gas_url || process.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbw52uo8upPX6SiZ_W4dD9MUrocA3DkZm3XnE-eU4uE3vvOtOAK4VhXcLIf71PGVsvxj/exec';
+    const gasUrl = settings?.gas_url || process.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbzvITJ2HwYAB3tlDDbnjv52b97goxigd2KzNGSIu3jfnlNIpZyNB4hC2nCg_0lxek9E/exec';
     if (gasUrl) {
       try {
         const gasRes = await fetch(gasUrl, {
@@ -1236,7 +1236,7 @@ async function executeDocAssignment(
           const { data: publicData } = supabase.storage.from('temp_docs').getPublicUrl(fileName);
           if (publicData?.publicUrl) finalFileUrl = `${publicData.publicUrl}?t=${Date.now()}`;
 
-          const gasUrl = process.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbw52uo8upPX6SiZ_W4dD9MUrocA3DkZm3XnE-eU4uE3vvOtOAK4VhXcLIf71PGVsvxj/exec';
+          const gasUrl = process.env.VITE_GAS_URL || 'https://script.google.com/macros/s/AKfycbzvITJ2HwYAB3tlDDbnjv52b97goxigd2KzNGSIu3jfnlNIpZyNB4hC2nCg_0lxek9E/exec';
           const base64 = Buffer.from(stampedBytes).toString('base64');
           const sanitizedSubject = doc.subject.replace(/[\/\\?%*:|"<>]/g, '-').slice(0, 50);
           const finalFileName = `${doc.doc_number}_เรื่อง_${sanitizedSubject}.pdf`;
