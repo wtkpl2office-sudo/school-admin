@@ -198,7 +198,7 @@ export default function IncomingDocs() {
           const finalFile = new File([stampedBytes as any], finalFileName, { type: 'application/pdf' });
           
           console.log('Uploading FINAL document to Google Drive...');
-          const gDriveUrl = await uploadFileToDrive(finalFile, 'incoming', finalFileName.replace('.pdf', ''));
+          const gDriveUrl = await uploadFileToDrive(finalFile, 'incoming', finalFileName.replace('.pdf', ''), selectedDoc.doc_date);
           
           console.log('Updating database with final Google Drive link and status...');
           await supabase.from('incoming_docs').update({ 
@@ -486,7 +486,7 @@ export default function IncomingDocs() {
 
       const att_urls = [];
       for (let i = 0; i < attachments.length; i++) {
-        const url = await uploadFileToDrive(attachments[i], 'incoming', `แนบ_${prefix}_${i + 1}`);
+        const url = await uploadFileToDrive(attachments[i], 'incoming', `แนบ_${prefix}_${i + 1}`, formData.doc_date);
         att_urls.push(url);
       }
 

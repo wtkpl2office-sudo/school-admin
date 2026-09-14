@@ -48,7 +48,17 @@ function doPost(e) {
     var filename = data.filename;
     var mimeType = data.mimeType || 'application/pdf';
     var rawFolder = data.folder || 'incoming';
-    var docYear = data.year || extractYearFromText(filename) || (new Date().getFullYear() + 543);
+    // กำหนดปี พ.ศ. ตาม "วันที่ลงรับหนังสือ" เสมอ
+    var docYear = data.year;
+    if (!docYear && data.doc_date) {
+      var parsedDate = new Date(data.doc_date);
+      if (!isNaN(parsedDate.getTime())) {
+        docYear = parsedDate.getFullYear() > 2400 ? parsedDate.getFullYear() : (parsedDate.getFullYear() + 543);
+      }
+    }
+    if (!docYear) {
+      docYear = new Date().getFullYear() + 543;
+    }
     
     if (!base64Data || !filename) {
       return createJsonResponse({ status: 'error', message: 'ข้อมูลไม่ครบถ้วน' });
@@ -246,12 +256,9 @@ function organizeExistingFiles() {
         continue;
       }
       
-      // ดึงปี พ.ศ. จากชื่อไฟล์ หรือวันที่สร้างไฟล์
-      var year = extractYearFromText(fileName);
-      if (!year) {
-        var createdDate = file.getDateCreated();
-        year = createdDate.getFullYear() + 543;
-      }
+      // ดึงปี พ.ศ. ตาม "วันที่ลงรับหนังสือ" (วันที่บันทึกไฟล์เข้าระบบ) เสมอ
+      var createdDate = file.getDateCreated();
+      var year = createdDate.getFullYear() + 543;
       
       // หาโฟลเดอร์เป้าหมายตามปีและหมวดหมู่
       var destFolder = getTargetCategoryFolder(year, curFolderName, fileName);

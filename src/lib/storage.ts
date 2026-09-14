@@ -42,8 +42,25 @@ export async function uploadFile(file: File, bucket: string, folder: string = ''
  * พร้อมระบบ Auto-Fallback อัจฉริยะ: หาก Google Apps Script ส่ง HTTP 404 หรือไม่พร้อมใช้งาน
  * ระบบจะสลับไปบันทึกบน Supabase Storage ทันที เพื่อป้องกันไม่ให้การบันทึกหนังสือสะดุดล้มเหลว
  */
-export async function uploadFileToDrive(file: File, folder: string, customName: string): Promise<string> {
+export async function uploadFileToDrive(
+  file: File, 
+  folder: string, 
+  customName: string,
+  docDateOrYear?: string | number
+): Promise<string> {
   const gasUrl = getGasUrl();
+
+  // คำนวณปี พ.ศ. จาก "วันที่ลงรับหนังสือ" เสมอ
+  let targetYear = new Date().getFullYear() + 543;
+  if (typeof docDateOrYear === 'number') {
+    targetYear = docDateOrYear;
+  } else if (typeof docDateOrYear === 'string' && docDateOrYear.trim()) {
+    const parsedDate = new Date(docDateOrYear);
+    if (!isNaN(parsedDate.getTime())) {
+      const y = parsedDate.getFullYear();
+      targetYear = y > 2400 ? y : y + 543;
+    }
+  }
 
   // 1. พยายามอัปโหลดขึ้น Google Drive ผ่าน Google Apps Script ก่อน
   if (gasUrl && !gasUrl.includes('YOUR_GAS_URL')) {
@@ -68,7 +85,8 @@ export async function uploadFileToDrive(file: File, folder: string, customName: 
                 filename: finalFilename,
                 mimeType: file.type || 'application/pdf',
                 base64: base64,
-                year: new Date().getFullYear() + 543
+                year: targetYear,
+                doc_date: docDateOrYear || new Date().toISOString().split('T')[0]
               })
             });
             clearTimeout(timeoutId);
