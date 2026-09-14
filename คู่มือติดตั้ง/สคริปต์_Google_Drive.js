@@ -1,15 +1,8 @@
-/**
- * =========================================================================
- * Google Apps Script (GAS) Smart Archiving & Auto-Organize Engine v2.0
- * สำหรับระบบบริหารจัดการข้อมูลโรงเรียน (School Admin System)
- * 
- * คุณสมบัติเด่น:
- * 1. แยกโฟลเดอร์ตาม "ปี พ.ศ." (เช่น ปี 2569) อัตโนมัติ
- * 2. แยกโฟลเดอร์ย่อยตาม "หมวดหมู่หนังสือ" (หนังสือรับ, หนังสือส่ง, คำสั่ง, ฯลฯ)
- * 3. มีระบบจัดระเบียบไฟล์เก่า (Auto-Organize) กวาดไฟล์เดิมเข้าโฟลเดอร์ใหม่ให้อัตโนมัติ 100%
- * 4. ลิงก์เดิมและ File ID ไม่เปลี่ยน ทำให้ลิงก์ใน Supabase และ Telegram เปิดได้ตามปกติ 100%
- * =========================================================================
- */
+// =========================================================================
+// Google Apps Script (GAS) Smart Archiving & Auto-Organize Engine v2.1
+// ระบบบริหารจัดการข้อมูลโรงเรียน (School Admin System)
+// โครงสร้างโฟลเดอร์: [สารบรรณอิเล็กทรอนิกส์] -> [ปี 2569] -> [01_หนังสือรับ]
+// =========================================================================
 
 // ชื่อโฟลเดอร์หลักของระบบสารบรรณโรงเรียน
 var ROOT_FOLDER_NAME = "สารบรรณอิเล็กทรอนิกส์ (SchoolAdminDocs)";
@@ -105,10 +98,8 @@ function doGet(e) {
   });
 }
 
-/**
- * ฟังก์ชันค้นหาหรือสร้างโฟลเดอร์ตามโครงสร้าง:
- * สารบรรณอิเล็กทรอนิกส์ -> ปี 2569 -> 01_หนังสือรับ
- */
+// ฟังก์ชันค้นหาหรือสร้างโฟลเดอร์ตามโครงสร้าง:
+// สารบรรณอิเล็กทรอนิกส์ -> ปี 2569 -> 01_หนังสือรับ
 function getTargetCategoryFolder(docYear, rawFolder, filename) {
   var rootFolder = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER_NAME);
   var yearFolderName = "ปี " + docYear;
@@ -119,17 +110,17 @@ function getTargetCategoryFolder(docYear, rawFolder, filename) {
   var lowerRaw = (rawFolder || '').toLowerCase();
   var lowerFile = (filename || '').toLowerCase();
   
-  if (lowerRaw.includes('incom') || lowerFile.startsWith('แนบ_') || lowerFile.includes('หนังสือรับ')) {
+  if (lowerRaw.indexOf('incom') !== -1 || lowerFile.indexOf('แนบ_') === 0 || lowerFile.indexOf('หนังสือรับ') !== -1) {
     categoryKey = 'incoming';
-  } else if (lowerRaw.includes('outgo') || lowerFile.includes('หนังสือส่ง') || lowerFile.includes('ส่ง_')) {
+  } else if (lowerRaw.indexOf('outgo') !== -1 || lowerFile.indexOf('หนังสือส่ง') !== -1 || lowerFile.indexOf('ส่ง_') === 0) {
     categoryKey = 'outgoing';
-  } else if (lowerRaw.includes('memo') || lowerFile.includes('บันทึก')) {
+  } else if (lowerRaw.indexOf('memo') !== -1 || lowerFile.indexOf('บันทึก') !== -1) {
     categoryKey = 'memos';
-  } else if (lowerRaw.includes('order') || lowerFile.includes('คำสั่ง')) {
+  } else if (lowerRaw.indexOf('order') !== -1 || lowerFile.indexOf('คำสั่ง') !== -1) {
     categoryKey = 'orders';
-  } else if (lowerRaw.includes('report') || lowerFile.includes('รายงาน')) {
+  } else if (lowerRaw.indexOf('report') !== -1 || lowerFile.indexOf('รายงาน') !== -1) {
     categoryKey = 'reports';
-  } else if (lowerRaw.includes('procure') || lowerFile.includes('พัสดุ') || lowerFile.includes('จัดซื้อ')) {
+  } else if (lowerRaw.indexOf('procure') !== -1 || lowerFile.indexOf('พัสดุ') !== -1 || lowerFile.indexOf('จัดซื้อ') !== -1) {
     categoryKey = 'procurement';
   }
   
@@ -137,9 +128,7 @@ function getTargetCategoryFolder(docYear, rawFolder, filename) {
   return getOrCreateFolder(yearFolder, categoryFolderName);
 }
 
-/**
- * สร้างหรือดึงโฟลเดอร์ย่อยอย่างปลอดภัย
- */
+// สร้างหรือดึงโฟลเดอร์ย่อยอย่างปลอดภัย
 function getOrCreateFolder(parentFolder, folderName) {
   var folders = parentFolder.getFoldersByName(folderName);
   if (folders.hasNext()) {
@@ -148,9 +137,7 @@ function getOrCreateFolder(parentFolder, folderName) {
   return parentFolder.createFolder(folderName);
 }
 
-/**
- * ดึงตัวเลขปี พ.ศ. จากชื่อไฟล์ (เช่น 2568, 2569)
- */
+// ดึงตัวเลขปี พ.ศ. จากชื่อไฟล์ (เช่น 2568, 2569)
 function extractYearFromText(text) {
   if (!text) return null;
   var match = text.match(/25[5-7][0-9]/); // จับปี 2550 - 2579
@@ -158,11 +145,9 @@ function extractYearFromText(text) {
   return null;
 }
 
-/**
- * 🚀 ฟังก์ชันจัดระเบียบไฟล์ที่มีอยู่เดิมทั้งหมด (Auto-Organize Migration)
- * แก้ไขปัญหา Timeout: จำกัดขอบเขตค้นหาเฉพาะโฟลเดอร์สารบรรณ และมี Time Guard 4 นาที
- * สามารถกดรันจากใน Apps Script Editor หรือเรียกผ่าน ?action=organize
- */
+// 🚀 ฟังก์ชันจัดระเบียบไฟล์ที่มีอยู่เดิมทั้งหมด (Auto-Organize Migration)
+// แก้ไขปัญหา Timeout: จำกัดขอบเขตค้นหาเฉพาะโฟลเดอร์สารบรรณ และมี Time Guard 4 นาที
+// สามารถกดรันจากใน Apps Script Editor หรือเรียกผ่าน ?action=organize
 function organizeExistingFiles() {
   var startTime = new Date().getTime();
   var MAX_RUNTIME_MS = 240000; // 4 นาที (ปลอดภัย ป้องกัน Google 6-minute timeout)
