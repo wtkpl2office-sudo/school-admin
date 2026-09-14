@@ -27,7 +27,7 @@ function doPost(e) {
       var organizeReport = organizeExistingFiles();
       return createJsonResponse({
         status: 'success',
-        message: 'จัดระเบียบไฟล์เก่าเข้าโฟลเดอร์ตามปี พ.ศ. และหมวดหมู่เรียบร้อยแล้วค่ะ 🌸',
+        message: 'จัดระเบียบไฟล์เรียบร้อยแล้ว',
         report: organizeReport
       });
     }
@@ -51,7 +51,7 @@ function doPost(e) {
     var docYear = data.year || extractYearFromText(filename) || (new Date().getFullYear() + 543);
     
     if (!base64Data || !filename) {
-      return createJsonResponse({ status: 'error', message: 'ข้อมูลไม่ครบถ้วน (ต้องการ base64, filename)' });
+      return createJsonResponse({ status: 'error', message: 'ข้อมูลไม่ครบถ้วน' });
     }
     
     // 1. ถอดรหัสไฟล์จาก Base64 เป็น Binary Blob
@@ -87,13 +87,13 @@ function doGet(e) {
   
   if (action === 'organize') {
     var report = organizeExistingFiles();
-    return ContentService.createTextOutput("🌸 จัดระเบียบไฟล์เอกสารใน Google Drive เรียบร้อยแล้วค่ะ!\n\n" + JSON.stringify(report, null, 2))
+    return ContentService.createTextOutput("จัดระเบียบไฟล์เอกสารใน Google Drive เรียบร้อยแล้ว\n\n" + JSON.stringify(report, null, 2))
       .setMimeType(ContentService.MimeType.TEXT);
   }
   
   return createJsonResponse({
     status: 'success',
-    message: 'Google Apps Script Smart Archiving Engine is active and ready! 🌸',
+    message: 'Google Apps Script Smart Archiving Engine is active and ready!',
     hint: 'พิมพ์ต่อท้าย URL ด้วย ?action=organize เพื่อสั่งจัดระเบียบไฟล์เก่าเข้าโฟลเดอร์อัตโนมัติ'
   });
 }
@@ -249,7 +249,7 @@ function organizeExistingFiles() {
       if (!alreadyInDest) {
         file.moveTo(destFolder);
         movedCount++;
-        Logger.log("✅ ย้ายไฟล์: " + fileName + " -> " + destFolder.getName());
+        Logger.log("ย้ายไฟล์: " + fileName + " -> " + destFolder.getName());
       } else {
         skippedCount++;
       }
@@ -258,9 +258,9 @@ function organizeExistingFiles() {
 
   var msg = "";
   if (timeLimitReached) {
-    msg = "⏳ ย้ายไฟล์ในรอบนี้แล้ว " + movedCount + " ไฟล์ (ระบบหยุดพักอัตโนมัติที่ 4 นาทีเพื่อป้องกัน timeout) หากยังมีไฟล์เหลืออยู่ สามารถกดรันอีกครั้งได้ทันทีค่ะ";
+    msg = "ย้ายไฟล์ในรอบนี้แล้ว " + movedCount + " ไฟล์ (ระบบหยุดพักอัตโนมัติที่ 4 นาทีเพื่อป้องกัน timeout) หากยังมีไฟล์เหลืออยู่ สามารถกดรันอีกครั้งได้ทันที";
   } else {
-    msg = "🎉 จัดระเบียบไฟล์ทั้งหมดสำเร็จสมบูรณ์! ย้ายทั้งหมด " + movedCount + " ไฟล์ (ไฟล์ที่อยู่ถูกที่แล้ว " + skippedCount + " ไฟล์)";
+    msg = "จัดระเบียบไฟล์ทั้งหมดสำเร็จสมบูรณ์ ย้ายทั้งหมด " + movedCount + " ไฟล์ (ไฟล์ที่อยู่ถูกที่แล้ว " + skippedCount + " ไฟล์)";
   }
   
   Logger.log(msg);
