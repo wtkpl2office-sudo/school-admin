@@ -169,7 +169,8 @@ async function uploadTelegramFileToSupabase(botToken: string, fileId: string, cu
             folder: 'reports',
             filename: filename,
             mimeType: contentType,
-            base64: buffer.toString('base64')
+            base64: buffer.toString('base64'),
+            year: new Date().getFullYear() + 543
           })
         });
         const gasResult = await gasRes.json() as any;
@@ -1245,7 +1246,13 @@ async function executeDocAssignment(
             const driveRes = await fetch(gasUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ folder: 'incoming', filename: finalFileName, mimeType: 'application/pdf', base64: base64 })
+              body: JSON.stringify({ 
+                folder: 'incoming', 
+                filename: finalFileName, 
+                mimeType: 'application/pdf', 
+                base64: base64,
+                year: doc.doc_year || (new Date().getFullYear() + 543)
+              })
             });
 
             if (driveRes.ok) {

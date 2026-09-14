@@ -67,7 +67,8 @@ export async function uploadFileToDrive(file: File, folder: string, customName: 
                 folder: folder,
                 filename: finalFilename,
                 mimeType: file.type || 'application/pdf',
-                base64: base64
+                base64: base64,
+                year: new Date().getFullYear() + 543
               })
             });
             clearTimeout(timeoutId);

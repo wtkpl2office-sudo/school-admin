@@ -1318,7 +1318,8 @@ async function executeDocAssignment(docId: string, teacherId: string, instructio
                 folder: 'incoming',
                 filename: finalFileName,
                 mimeType: 'application/pdf',
-                base64: base64
+                base64: base64,
+                year: doc.doc_year || (new Date().getFullYear() + 543)
               })
             });
 
