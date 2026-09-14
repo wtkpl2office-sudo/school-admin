@@ -375,8 +375,14 @@ export default function IncomingDocs() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้?')) return;
+    const docToDelete = docs.find(d => d.id === id);
+    const docDesc = docToDelete ? `เลขรับที่ ${docToDelete.doc_number} (เรื่อง: ${docToDelete.subject || '-'})` : 'ข้อมูลนี้';
+    if (!confirm(`⚠️ คุณแน่ใจหรือไม่ว่าต้องการลบ ${docDesc}?\n\nข้อมูลการลงรับและไฟล์เอกสารที่เกี่ยวข้องจะถูกลบออกจากระบบสารบรรณ`)) return;
     try {
+      // 1. ลบรายการมอบหมายงานที่ผูกกับหนังสือนี้ก่อน เพื่อป้องกัน foreign key error
+      await supabase.from('doc_assignments').delete().eq('doc_id', id);
+
+      // 2. ลบไฟล์เอกสารใน Google Drive หรือ Supabase Storage
       const { data: doc } = await supabase.from('incoming_docs').select('file_url, attachment_urls').eq('id', id).maybeSingle();
       if (doc) {
         if (doc.file_url && typeof doc.file_url === 'string') {
@@ -394,9 +400,10 @@ export default function IncomingDocs() {
           }
         }
       }
+      // 3. ลบแถวข้อมูลหนังสือรับ
       const { error } = await supabase.from('incoming_docs').delete().eq('id', id);
       if (error) throw error;
-      alert('ลบข้อมูลเรียบร้อยแล้ว');
+      alert(`ลบ ${docDesc} เรียบร้อยแล้วค่ะ`);
       fetchDocs();
     } catch (err: any) {
       alert('ลบไม่สำเร็จ: ' + err.message);
@@ -1223,9 +1230,13 @@ export default function IncomingDocs() {
                           <Paperclip size={14} /> แนบไฟล์
                         </button>
                       )}
-                      {isAdmin && (
-                        <button onClick={() => handleDelete(doc.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="ลบข้อมูล">
-                          <Trash2 size={18} />
+                      {(isAdmin || isDirector || profile?.role === 'teacher' || doc.created_by === user?.id) && (
+                        <button 
+                          onClick={() => handleDelete(doc.id)} 
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                          title="ลบหนังสือรับนี้"
+                        >
+                          <Trash2 size={16} />
                         </button>
                       )}
                     </div>

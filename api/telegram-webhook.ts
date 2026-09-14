@@ -3389,6 +3389,47 @@ export default async function handler(req: any, res: any) {
         return res.status(200).json({ ok: true });
       }
 
+      // ── 6.7 คำสั่งลบหนังสือรับ (รองรับการลบหนังสือรับที่ลงผิด/ต้องการลงรับใหม่) ──
+      if (
+        normCmd.startsWith('/ลบหนังสือรับ') ||
+        normCmd.startsWith('/ลบรับ') ||
+        normCmd.startsWith('/ลบเลขรับ') ||
+        normCmd.startsWith('/ยกเลิกหนังสือรับ')
+      ) {
+        const targetSeqStr = normCmd.replace(/^\/(ลบหนังสือรับ|ลบรับ|ลบเลขรับ|ยกเลิกหนังสือรับ)\s*/, '').trim();
+        const targetSeq = parseInt(targetSeqStr, 10);
+
+        if (!targetSeqStr) {
+          await sendTelegramMessage(botToken, chatId, `⚠️ กรุณาระบุเลขรับที่ต้องการลบ เช่น <code>/ลบหนังสือรับ 822</code> ค่ะ 🌸`);
+          return res.status(200).json({ ok: true });
+        }
+
+        // ค้นหาหนังสือรับที่ตรงกับ doc_number หรือ doc_sequence
+        const { data: matchedDocs } = await supabase
+          .from('incoming_docs')
+          .select('id, doc_number, subject, file_url, doc_sequence')
+          .or(`doc_number.eq.${targetSeqStr},doc_sequence.eq.${isNaN(targetSeq) ? -1 : targetSeq}`);
+
+        if (!matchedDocs || matchedDocs.length === 0) {
+          await sendTelegramMessage(botToken, chatId, `❌ ไม่พบหนังสือรับเลขที่ <b>${escapeHtml(targetSeqStr)}</b> ในระบบสารบรรณค่ะ 🌸`);
+          return res.status(200).json({ ok: true });
+        }
+
+        let deletedCount = 0;
+        for (const doc of matchedDocs) {
+          await supabase.from('doc_assignments').delete().eq('doc_id', doc.id);
+          await supabase.from('incoming_docs').delete().eq('id', doc.id);
+          deletedCount++;
+        }
+
+        await sendTelegramMessage(
+          botToken, 
+          chatId, 
+          `🗑️ <b>ลบหนังสือรับเลขที่ ${escapeHtml(targetSeqStr)} สำเร็จเรียบร้อย!</b>\n\nระบบได้ลบข้อมูลหนังสือรับออกจำนวน <b>${deletedCount}</b> ฉบับเรียบร้อยแล้วค่ะ\nคุณครูสามารถดำเนินการลงรับหนังสือใหม่ในระบบได้ทันทีค่ะ 🌸`
+        );
+        return res.status(200).json({ ok: true });
+      }
+
       if (
         normCmd.startsWith('/ยกเลิกเลขจอง') ||
         normCmd.startsWith('/ยกเลิกจอง') ||
