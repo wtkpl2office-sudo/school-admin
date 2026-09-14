@@ -36,63 +36,104 @@ export async function uploadFile(file: File, bucket: string, folder: string = ''
 
 /**
  * Uploads a file to Google Drive via GAS with smart naming.
+ * พร้อมระบบ Auto-Fallback อัจฉริยะ: หาก Google Apps Script ส่ง HTTP 404 หรือไม่พร้อมใช้งาน
+ * ระบบจะสลับไปบันทึกบน Supabase Storage ทันที เพื่อป้องกันไม่ให้การบันทึกหนังสือสะดุดล้มเหลว
  */
 export async function uploadFileToDrive(file: File, folder: string, customName: string): Promise<string> {
+  const gasUrl = getGasUrl();
+
+  // 1. พยายามอัปโหลดขึ้น Google Drive ผ่าน Google Apps Script ก่อน
+  if (gasUrl && !gasUrl.includes('YOUR_GAS_URL')) {
+    try {
+      const gDriveUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+          const base64 = (reader.result as string).split(',')[1];
+          const fileExt = file.name.split('.').pop() || 'pdf';
+          const finalFilename = `${customName}.${fileExt}`;
+          
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 วินาที Timeout
+
+            const response = await fetch(gasUrl, {
+              method: 'POST',
+              signal: controller.signal,
+              body: JSON.stringify({
+                folder: folder,
+                filename: finalFilename,
+                mimeType: file.type || 'application/pdf',
+                base64: base64
+              })
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+              return reject(new Error(`HTTP ${response.status}`));
+            }
+
+            const result = await response.json();
+            if (result.status === 'success' && result.url) {
+              resolve(result.url);
+            } else {
+              reject(new Error(result.message || 'GAS Upload response status not success'));
+            }
+          } catch (fetchErr) {
+            reject(fetchErr);
+          }
+        };
+        reader.onerror = (error) => reject(error);
+      });
+
+      if (gDriveUrl) return gDriveUrl;
+    } catch (gasErr: any) {
+      console.warn('[STORAGE] Google Apps Script upload failed (HTTP 404/Timeout). Seamlessly falling back to Supabase Storage...', gasErr);
+    }
+  }
+
+  // 2. Auto-Fallback: หาก Google Apps Script ล้มเหลว (เช่น HTTP 404 หรือปิดกั้นสิทธิ์) ให้สลับไปจัดเก็บบน Supabase Storage ทันที
   try {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        const fileExt = file.name.split('.').pop();
-        const finalFilename = `${customName}.${fileExt}`;
-        
-        try {
-          const response = await fetch(getGasUrl(), {
-            method: 'POST',
-            body: JSON.stringify({
-              folder: folder,
-              filename: finalFilename,
-              mimeType: file.type,
-              base64: base64
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error(`Google Apps Script ส่งสถานะผิดพลาด HTTP ${response.status} (กรุณาตรวจสอบว่าตั้งค่าสิทธิ์ Web App เป็น Anyone และขนาดไฟล์ไม่เกินขีดจำกัด)`);
-          }
-
-          const result = await response.json();
-          if (result.status === 'success') {
-            resolve(result.url);
-          } else {
-            reject(new Error(result.message || 'Upload failed'));
-          }
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  } catch (err) {
-    console.error('GAS Upload error:', err);
-    throw err;
+    const fileExt = file.name.split('.').pop() || 'pdf';
+    const fallbackPath = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    const supabaseUrl = await uploadToSupabase(file, 'temp_docs', fallbackPath);
+    console.log('[STORAGE] Supabase Storage fallback successful:', supabaseUrl);
+    return supabaseUrl;
+  } catch (supabaseErr: any) {
+    console.error('[STORAGE] Both Google Drive and Supabase Storage upload failed:', supabaseErr);
+    throw new Error(`ไม่สามารถจัดเก็บไฟล์ได้ทั้ง Google Drive และ Supabase (สาเหตุ: ${supabaseErr.message || 'Storage error'})`);
   }
 }
 
 /**
- * Deletes a file from Google Drive via GAS using its URL or ID.
+ * Deletes a file from Google Drive via GAS or Supabase Storage using its URL or ID.
  */
 export async function deleteFileFromDrive(fileUrl: string): Promise<boolean> {
   if (!fileUrl) return true;
   
+  // กรณีเป็นไฟล์บน Supabase Storage
+  if (fileUrl.includes('supabase.co')) {
+    try {
+      const match = fileUrl.match(/\/temp_docs\/(.+)$/);
+      if (match && match[1]) {
+        await deleteFromSupabase('temp_docs', decodeURIComponent(match[1]));
+        return true;
+      }
+    } catch (e) {
+      console.warn('[STORAGE] Supabase remove warning:', e);
+    }
+  }
+
+  // กรณีเป็นไฟล์บน Google Drive ผ่าน GAS
   try {
-    // Extract ID from URL if possible (supports both view and download links)
+    const gasUrl = getGasUrl();
+    if (!gasUrl) return true;
+
     let fileId = fileUrl;
     const match = fileUrl.match(/[-\w]{25,}/);
     if (match) fileId = match[0];
 
-    const response = await fetch(getGasUrl(), {
+    const response = await fetch(gasUrl, {
       method: 'POST',
       body: JSON.stringify({
         action: 'delete',

@@ -150,39 +150,49 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-export default async function handler(req: Request): Promise<Response> {
+export default async function handler(req: any, res?: any): Promise<any> {
+  const sendJson = (status: number, data: any) => {
+    if (res && typeof res.status === 'function') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(status).json(data);
+    }
+    return new Response(JSON.stringify(data), { 
+      status, 
+      headers: corsHeaders 
+    });
+  };
+
   // 1. รองรับ CORS Preflight
   if (req.method === 'OPTIONS') {
+    if (res && typeof res.status === 'function') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.status(204).end();
+    }
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ message: 'Method not allowed' }), { 
-      status: 405, 
-      headers: corsHeaders 
-    });
+    return sendJson(405, { message: 'Method not allowed' });
   }
 
-  // 2. Parse Request Body
+  // 2. Parse Request Body แบบ Universal
   let body: any = {};
   try {
-    if (typeof req.json === 'function') {
+    if (req.body && typeof req.body === 'object') {
+      body = req.body;
+    } else if (typeof req.json === 'function') {
       body = await req.json();
-    } else if ((req as any).body) {
-      body = (req as any).body;
+    } else if (typeof req.body === 'string') {
+      body = JSON.parse(req.body);
     }
   } catch (e) {
     console.warn('[OCR PROCESS] Body parsing warning:', e);
+    body = {};
   }
-
-  // ตอบกลับ 200 OK ทันที เพื่อป้องกัน client timeout
-  const immediateResponse = new Response(JSON.stringify({ 
-    ok: true, 
-    message: 'เริ่มต้นประมวลผล OCR และความจำ RAG เรียบร้อยแล้ว' 
-  }), { 
-    status: 200, 
-    headers: corsHeaders 
-  });
 
   const processTask = async () => {
     const { docId, fileUrl, silent = false } = body || {};
@@ -472,7 +482,10 @@ ${teachersListStr}
     processTask().catch(e => console.error('[DETACHED OCR TASK ERROR]', e));
   }
 
-  return immediateResponse;
+  return sendJson(200, {
+    ok: true,
+    message: 'เริ่มต้นประมวลผล OCR และความจำ RAG เรียบร้อยแล้ว'
+  });
 }
 
 
