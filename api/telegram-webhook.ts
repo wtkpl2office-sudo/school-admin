@@ -2657,19 +2657,107 @@ export default async function handler(req: any, res: any) {
     }
 
     // --- 5. ตอบกลับข้อความทั่วไป ---
-    // ตรวจสอบว่าแชทไอดีนี้ผูกบัญชีไว้กับโรงเรียนนี้แล้วหรือยัง
-    const { data: profileLinked, error: linkErr } = await supabase
+    // ตรวจสอบว่าแชทไอดีนี้ผูกบัญชีไว้กับโรงเรียนนี้แล้วหรือยัง (รองรับ Self-Healing Auto-Linking)
+    let { data: profileLinked, error: linkErr } = await supabase
       .from('profiles')
-      .select('id, display_name, role, email')
+      .select('id, display_name, role, email, telegram_chat_id')
       .eq('telegram_chat_id', String(userTelegramId))
-      
       .maybeSingle();
+
+    // Fallback 1: ตรวจสอบจาก chatId เผื่อกรณีบันทึกเป็น chatId หรือเคยผูกไว้แบบแชทเดี่ยว
+    if (!profileLinked && chatId) {
+      const { data: byChatId } = await supabase
+        .from('profiles')
+        .select('id, display_name, role, email, telegram_chat_id')
+        .eq('telegram_chat_id', String(chatId))
+        .maybeSingle();
+      if (byChatId) {
+        profileLinked = byChatId;
+        // Self-Healing: อัปเดต userTelegramId คืนให้ถูกต้อง
+        if (userTelegramId && byChatId.telegram_chat_id !== String(userTelegramId)) {
+          await supabase.from('profiles').update({ telegram_chat_id: String(userTelegramId) }).eq('id', byChatId.id);
+        }
+      }
+    }
+
+    // Fallback 2: ตรวจสอบจากตาราง teachers
+    if (!profileLinked && userTelegramId) {
+      const { data: teacherMatched } = await supabase
+        .from('teachers')
+        .select('id, first_name, last_name, email, telegram_chat_id')
+        .eq('telegram_chat_id', String(userTelegramId))
+        .maybeSingle();
+      if (teacherMatched?.email) {
+        const { data: profByEmail } = await supabase
+          .from('profiles')
+          .select('id, display_name, role, email, telegram_chat_id')
+          .eq('email', teacherMatched.email.toLowerCase().trim())
+          .maybeSingle();
+        if (profByEmail) {
+          profileLinked = profByEmail;
+          await supabase.from('profiles').update({ telegram_chat_id: String(userTelegramId) }).eq('id', profByEmail.id);
+        }
+      }
+    }
+
+    // Fallback 3: Smart Self-Healing Auto-Link ด้วยชื่อผู้ใช้ (ป้องกันปัญหา Chat ID หลุด/ไม่ตรง)
+    if (!profileLinked && userTelegramId && (message.from?.first_name || message.from?.last_name || message.from?.username)) {
+      const senderFirst = (message.from?.first_name || '').toLowerCase().trim();
+      const senderLast = (message.from?.last_name || '').toLowerCase().trim();
+      const senderUser = (message.from?.username || '').toLowerCase().trim();
+      const senderFullName = `${senderFirst} ${senderLast}`.trim();
+
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('id, display_name, role, email, telegram_chat_id');
+
+      if (allProfiles && allProfiles.length > 0) {
+        for (const p of allProfiles) {
+          const pName = (p.display_name || '').toLowerCase().trim();
+          const pEmail = (p.email || '').toLowerCase().trim();
+          
+          const isMatched = 
+            (senderFirst.length >= 3 && pName.includes(senderFirst)) ||
+            (senderLast.length >= 3 && pName.includes(senderLast)) ||
+            (senderFullName.length >= 3 && (pName.includes(senderFullName) || senderFullName.includes(pName))) ||
+            (senderUser.length >= 3 && (pEmail.includes(senderUser) || pName.includes(senderUser)));
+
+          if (isMatched) {
+            console.log(`[TELEGRAM SELF-HEALING] Auto-linking profile "${p.display_name}" to Telegram ID ${userTelegramId}`);
+            profileLinked = p;
+            await supabase.from('profiles').update({ telegram_chat_id: String(userTelegramId) }).eq('id', p.id);
+            if (p.email) {
+              await supabase.from('teachers').update({ telegram_chat_id: String(userTelegramId) }).eq('email', p.email.toLowerCase().trim());
+            }
+            break;
+          }
+        }
+      }
+
+      // ตรวจสอบกับชื่อ ผอ. ใน settings เพิ่มเติม
+      if (!profileLinked && settings?.director_name) {
+        const dirName = settings.director_name.toLowerCase().trim();
+        const isMatchedDir = 
+          (senderFirst.length >= 3 && dirName.includes(senderFirst)) ||
+          (senderLast.length >= 3 && dirName.includes(senderLast)) ||
+          (senderFullName.length >= 3 && (dirName.includes(senderFullName) || senderFullName.includes(dirName)));
+
+        if (isMatchedDir) {
+          const dirProfile = allProfiles?.find((p: any) => p.role === 'director') || allProfiles?.[0];
+          if (dirProfile) {
+            console.log(`[TELEGRAM SELF-HEALING] Auto-linking director via settings.director_name to Telegram ID ${userTelegramId}`);
+            profileLinked = dirProfile;
+            await supabase.from('profiles').update({ telegram_chat_id: String(userTelegramId) }).eq('id', dirProfile.id);
+          }
+        }
+      }
+    }
 
     if (linkErr || !profileLinked) {
       await sendTelegramMessage(
         botToken,
         chatId,
-        '🔗 <b>แชทนี้ยังไม่ได้เชื่อมต่อระบบสารบรรณ</b>\n\nกรุณาเข้าสู่ระบบสารบรรณโรงเรียนบนเว็บไซต์หรือคอมพิวเตอร์ จากนั้นไปที่หน้า "โปรไฟล์ส่วนตัว" และกดปุ่ม <b>"ผูกบัญชี Telegram"</b> เพื่อเปิดระบบแจ้งเตือนค่ะ'
+        `🔗 <b>แชทนี้ยังไม่ได้เชื่อมต่อระบบสารบรรณ</b>\n\n🆔 <b>Telegram Chat ID ของท่านคือ:</b> <code>${userTelegramId}</code>\n\nกรุณาเข้าสู่ระบบสารบรรณโรงเรียนบนเว็บไซต์ จากนั้นไปที่หน้า <b>"โปรไฟล์ส่วนตัว"</b> แล้วกดปุ่ม <b>"ผูกบัญชี Telegram"</b> หรือนำเลข ID ด้านบนนี้ไปแจ้งผู้ดูแลระบบเพื่อเปิดสิทธิ์ค่ะ 🌸`
       );
       return res.status(200).json({ ok: true });
     }
