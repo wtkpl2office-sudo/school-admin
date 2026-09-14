@@ -99,29 +99,45 @@ function doGet(e) {
 }
 
 // ฟังก์ชันค้นหาหรือสร้างโฟลเดอร์ตามโครงสร้าง:
-// สารบรรณอิเล็กทรอนิกส์ -> ปี 2569 -> 01_หนังสือรับ
 function getTargetCategoryFolder(docYear, rawFolder, filename) {
   var rootFolder = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER_NAME);
   var yearFolderName = "ปี " + docYear;
   var yearFolder = getOrCreateFolder(rootFolder, yearFolderName);
   
-  // จำแนกหมวดหมู่
   var categoryKey = 'general';
   var lowerRaw = (rawFolder || '').toLowerCase();
   var lowerFile = (filename || '').toLowerCase();
   
-  if (lowerRaw.indexOf('incom') !== -1 || lowerFile.indexOf('แนบ_') === 0 || lowerFile.indexOf('หนังสือรับ') !== -1) {
-    categoryKey = 'incoming';
-  } else if (lowerRaw.indexOf('outgo') !== -1 || lowerFile.indexOf('หนังสือส่ง') !== -1 || lowerFile.indexOf('ส่ง_') === 0) {
-    categoryKey = 'outgoing';
+  // 1. คำสั่งโรงเรียน
+  if (lowerRaw.indexOf('order') !== -1 || lowerFile.indexOf('คำสั่ง') !== -1) {
+    categoryKey = 'orders';
+  // 2. บันทึกข้อความ
   } else if (lowerRaw.indexOf('memo') !== -1 || lowerFile.indexOf('บันทึก') !== -1) {
     categoryKey = 'memos';
-  } else if (lowerRaw.indexOf('order') !== -1 || lowerFile.indexOf('คำสั่ง') !== -1) {
-    categoryKey = 'orders';
+  // 3. หนังสือส่ง
+  } else if (lowerRaw.indexOf('outgo') !== -1 || lowerFile.indexOf('หนังสือส่ง') !== -1 || lowerFile.indexOf('ส่ง_') === 0) {
+    categoryKey = 'outgoing';
+  // 4. รายงานผลการปฏิบัติงาน
   } else if (lowerRaw.indexOf('report') !== -1 || lowerFile.indexOf('รายงาน') !== -1) {
     categoryKey = 'reports';
+  // 5. จัดซื้อจัดจ้าง / พัสดุ
   } else if (lowerRaw.indexOf('procure') !== -1 || lowerFile.indexOf('พัสดุ') !== -1 || lowerFile.indexOf('จัดซื้อ') !== -1) {
     categoryKey = 'procurement';
+  // 6. หนังสือรับ (Incoming Docs):
+  // ครอบคลุม: โฟลเดอร์ incoming / SchoolAdminDocs, ไฟล์แนบ, มีคำว่าหนังสือรับ,
+  // หนังสือนำที่มีชื่อเรื่อง เช่น "822_เรื่อง_...", หรือขึ้นต้นด้วยเลขที่ เช่น "822_", "ว", "ศธ", "ที่"
+  } else if (
+    lowerRaw.indexOf('incom') !== -1 || 
+    lowerRaw.indexOf('schooladmindocs') !== -1 || 
+    lowerFile.indexOf('แนบ_') === 0 || 
+    lowerFile.indexOf('หนังสือรับ') !== -1 || 
+    lowerFile.indexOf('รับ_') === 0 ||
+    lowerFile.indexOf('_เรื่อง_') !== -1 ||
+    /^[0-9]+_/.test(lowerFile) ||
+    /^[0-9]+$/.test(lowerFile.replace('.pdf', '')) ||
+    /^[วศธท]/i.test(lowerFile)
+  ) {
+    categoryKey = 'incoming';
   }
   
   var categoryFolderName = CATEGORY_MAP[categoryKey] || '07_เอกสารทั่วไป';
@@ -179,9 +195,14 @@ function organizeExistingFiles() {
   for (var n = 0; n < legacyNames.length; n++) {
     var folIter = DriveApp.getFoldersByName(legacyNames[n]);
     while (folIter.hasNext()) {
-      var lf = folIter.next();
-      foldersToProcess.push(lf);
+      foldersToProcess.push(folIter.next());
     }
+  }
+
+  // 4. ตรวจสอบโฟลเดอร์ 07_เอกสารทั่วไป เพื่อดึงหนังสือนำที่เคยหลงเข้าไปกลับมาจัดใหม่
+  var generalFolders = DriveApp.getFoldersByName('07_เอกสารทั่วไป');
+  while (generalFolders.hasNext()) {
+    foldersToProcess.push(generalFolders.next());
   }
 
   var movedCount = 0;
@@ -194,11 +215,10 @@ function organizeExistingFiles() {
     var curFolder = foldersToProcess[i];
     var curFolderName = curFolder.getName();
     
-    // ข้ามโฟลเดอร์ปลายทางที่จัดระเบียบเรียบร้อยแล้ว (เช่น "01_หนังสือรับ", "02_หนังสือส่ง", ฯลฯ)
+    // ข้ามเฉพาะโฟลเดอร์ 01_ ถึง 06_ ที่จัดระเบียบถูกต้องแล้ว (ไม่ข้าม 07_ เพื่อตรวจสอบไฟล์หลงทาง)
     if (curFolderName.indexOf('01_') === 0 || curFolderName.indexOf('02_') === 0 || 
         curFolderName.indexOf('03_') === 0 || curFolderName.indexOf('04_') === 0 ||
-        curFolderName.indexOf('05_') === 0 || curFolderName.indexOf('06_') === 0 ||
-        curFolderName.indexOf('07_') === 0) {
+        curFolderName.indexOf('05_') === 0 || curFolderName.indexOf('06_') === 0) {
       continue;
     }
     
