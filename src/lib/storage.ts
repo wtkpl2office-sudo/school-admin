@@ -58,7 +58,7 @@ export async function uploadFileToDrive(file: File, folder: string, customName: 
           
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 วินาที Timeout
+            const timeoutId = setTimeout(() => controller.abort(), 35000); // 35 วินาที Timeout สำหรับไฟล์ PDF ขนาดใหญ่
 
             const response = await fetch(gasUrl, {
               method: 'POST',
