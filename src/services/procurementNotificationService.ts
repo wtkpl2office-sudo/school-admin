@@ -347,20 +347,20 @@ export class ProcurementNotificationService {
       const gateNames = ['', 'ขั้น 1: ขอซื้อ/จ้าง', 'ขั้น 2: รายงานพัสดุ', 'ขั้น 3: สั่งซื้อ/สัญญา', 'ขั้น 4: ตรวจรับ', 'ขั้น 5: เบิกจ่ายเงิน', 'ขั้น 6: ทะเบียนคุม'];
       const currentGateName = gateNames[caseData.current_gate || 1] || `ขั้นตอนที่ ${caseData.current_gate}`;
 
-      let msg = `📢 <b>[ความคืบหน้าสำนวนจัดซื้อจัดจ้าง]</b>\n`;
+      let msg = `🔔 <b>[สะกิดเตือนความคืบหน้า] สำนวนจัดซื้อจัดจ้าง</b>\n`;
       msg += `━━━━━━━━━━━━━━━━━━━━\n`;
       msg += `📂 <b>สำนวน:</b> <code>${escapeHtml(caseData.pcid)}</code>\n`;
       msg += `📝 <b>เรื่อง:</b> ${escapeHtml(caseData.title)}\n`;
       msg += `💰 <b>วงเงิน:</b> ฿${amountFmt} บาท\n`;
-      msg += `📍 <b>สถานะปัจจุบัน:</b> ${escapeHtml(currentGateName)} (${escapeHtml(caseData.status || '-')})\n`;
+      msg += `📍 <b>สถานะขณะนี้:</b> ${escapeHtml(currentGateName)} (${escapeHtml(caseData.status || '-')})\n`;
       if (note) {
-        msg += `💬 <b>หมายเหตุ:</b> ${escapeHtml(note)}\n`;
+        msg += `💬 <b>ข้อความสะกิดเตือน:</b> ${escapeHtml(note)}\n`;
       }
       msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-      msg += `<i>ติดตามรายละเอียดและพิมพ์เอกสารได้ในระบบ EPCM โรงเรียนค่ะ</i>`;
+      msg += `<i>ติดตามความคืบหน้าและตรวจสอบเอกสารได้ในระบบ EPCM โรงเรียนค่ะ 🌸</i>`;
 
       await sendTelegramNotification(msg, 'proposal');
-      return { success: true, message: 'ส่งแจ้งเตือนความคืบหน้าเรียบร้อยแล้ว' };
+      return { success: true, message: 'ส่งข้อความสะกิดเตือนความคืบหน้าทาง Telegram เรียบร้อยแล้วค่ะ' };
     } catch (err: any) {
       return { success: false, message: err.message };
     }

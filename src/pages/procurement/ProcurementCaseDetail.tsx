@@ -244,9 +244,9 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
     }
   };
 
-  // Handler: ส่งบรอดแคสต์แจ้งเตือนผู้เกี่ยวข้องทาง Telegram (Manual Trigger)
+  // Handler: ส่งบรอดแคสต์แจ้งเตือนผู้เกี่ยวข้องทาง Telegram (Manual Trigger / ส่งสะกิดเตือนซ้ำ)
   const handleBroadcastTelegram = async () => {
-    const note = prompt('ระบุข้อความหรือหมายเหตุที่ต้องการแจ้งเตือนถึงผู้เกี่ยวข้อง (หรือกดตกลงเพื่อส่งสถานะปัจจุบัน):', '');
+    const note = prompt('ระบุข้อความสะกิดเตือนถึงผู้รับผิดชอบ (หรือกดตกลงเพื่อส่งสะกิดสถานะปัจจุบันซ้ำ):', '');
     if (note === null) return;
     setUpdating(true);
     try {
@@ -364,11 +364,11 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
           <button
             onClick={handleBroadcastTelegram}
             disabled={updating}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold text-xs shadow-xs transition-all cursor-pointer"
-            title="ส่งแจ้งเตือนสถานะปัจจุบันเข้า Telegram กลุ่ม/บุคคล"
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs shadow-xs transition-all cursor-pointer"
+            title="กดส่งข้อความสะกิดเตือนซ้ำเข้า Telegram ผู้รับผิดชอบในขั้นตอนนี้"
           >
             <Bell size={16} />
-            <span>📢 แจ้งเตือน Telegram</span>
+            <span>🔔 ส่งสะกิดเตือนซ้ำ</span>
           </button>
 
           <button
