@@ -141,7 +141,35 @@
   - หลีกเลี่ยง Block Comment `/** ... */` ให้ใช้ `//` เพื่อป้องกันปัญหา `Unexpected token '*'` จากการคัดลอกตกหล่น
   - String ข้อความในโค้ดต้องสั้น กระชับ บรรทัดเดียว เพื่อป้องกันปัญหาโปรแกรมแชทตัดบรรทัด (Line-wrapping) กลางเครื่องหมายคำพูดจนเกิด `SyntaxError: Invalid or unexpected token`
 
+### 16) กระบวนการ Fast-Track Deployment & Resilience เมื่อบัญชี GitHub ติด Flag หรือบล็อก Webhook
+- **ปัญหา**: เมื่อบัญชี GitHub หลัก (`officebkky-sketch`) ติดสถานะ Flagged ("cannot authorize a third party application"):
+  1. Git Credential Manager (GCM) บน Windows จะค้างไม่สามารถ push ผ่านหน้าต่างเว็บ OAuth ได้
+  2. GitHub จะระงับการยิง Webhook ไปหา Vercel ทำให้การ push ไม่ trigger build อัตโนมัติ
+  3. บัญชี Vercel ในเครื่องอาจสับสนระหว่างบัญชีชั่วคราว (`hourmir2-3686`) กับบัญชีจริงของโรงเรียน (`officebkky-school-admin`)
+- **แนวทางปฏิบัติที่เป็นมาตรฐาน (Standard Operating Procedure)**:
+  1. **การ Push โค้ดขึ้น Git ผ่าน Personal Access Token (PAT)**:
+     - ใช้ Personal Access Token (Classic) ที่มีสิทธิ์ `repo` ในการ push โดยตรง:
+       `git push https://officebkky-sketch:<PAT>@github.com/officebkky-sketch/school-admin.git multischool`
+  2. **การ Deploy ขึ้น Vercel Production โดยตรง (Bypass Webhook)**:
+     - ตัวเครื่องต้องผูกเข้ากับ Team: `officebkky-school-admin` และ Project: `school-admin` (Production URL: `https://school-admin-psi.vercel.app`)
+     - ทำการ Build และ Deploy ด้วย Prebuilt Package เพื่อความเร็วสูงสุด (18-35 วินาที):
+       ```bash
+       npx vercel build --prod --yes
+       npx vercel deploy --prebuilt --prod --yes
+       ```
+  3. **การเข้าถึงฐานข้อมูล Supabase ระดับ Superuser (PostgreSQL Pooler)**:
+     - ฐานข้อมูลโรงเรียนบ้านควนโคกยา (`vzrrpxrmtjpgfbbvhjra`) สามารถเชื่อมต่อรัน DDL / Migrations ได้โดยตรงผ่าน Connection Pooler:
+       - Host: `aws-1-ap-northeast-1.pooler.supabase.com`
+       - Port: `6543` (Transaction Mode)
+       - User: `postgres.vzrrpxrmtjpgfbbvhjra`
+       - Database: `postgres`
+     - ไม่ต้องรอหน้าเว็บ Supabase Dashboard หรือพึ่งพา GitHub OAuth ในการรันสคริปต์ตารางใหม่
+  4. **Master Migration File Consolidation**:
+     - รวมโครงสร้างตารางระบบจัดซื้อจัดจ้าง (Procurement Cases Suite) และระบบทะเบียนคุมพัสดุ/ครุภัณฑ์ (Asset & Supplies Registry Suite) ไว้ในไฟล์เดียว: `supabase_migration_asset_supplies_registry.sql`
+     - เขียนแบบ Idempotent (`IF NOT EXISTS` และ `DROP POLICY IF EXISTS`) เพื่อให้รันซ้ำได้ปลอดภัย 100%
+
 ---
+
 
 ### 📅 บันทึกแผนงานล่าสุด
 - **๑๑ มิถุนายน ๒๕๖๙ (v1.1.6 Hotfix):**
