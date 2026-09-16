@@ -853,13 +853,13 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">เจ้าหน้าที่พัสดุ (Officer) *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">เจ้าหน้าที่ (Officer) *</label>
                   <select
                     value={officerId}
                     onChange={(e) => setOfficerId(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">-- เลือกเจ้าหน้าที่พัสดุ --</option>
+                    <option value="">-- เลือกเจ้าหน้าที่ --</option>
                     {teachers.map(t => (
                       <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
                     ))}
@@ -867,7 +867,7 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">หัวหน้าเจ้าหน้าที่พัสดุ (Head) *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">หัวหน้าเจ้าหน้าที่ (Head) *</label>
                   <select
                     value={headOfficerId}
                     onChange={(e) => setHeadOfficerId(e.target.value)}

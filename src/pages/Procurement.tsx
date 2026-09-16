@@ -4,14 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { ProcurementDashboard } from './procurement/ProcurementDashboard';
 import { ProcurementWizard } from './procurement/ProcurementWizard';
 import { ProcurementCaseDetail } from './procurement/ProcurementCaseDetail';
+import { AssetSuppliesRegistry } from './procurement/AssetSuppliesRegistry';
 import { ProcurementDocGenerator, type ProcurementDocData } from '../services/procurementDocGenerator';
 
 // ==========================================
 // ข้อมูลจำลองสำหรับทดสอบโหมดออฟไลน์ (Offline Mode)
 // ==========================================
 const DEMO_TEACHERS = [
-  { id: 't1', first_name: 'สมหมาย', last_name: 'ใจดี', position: 'เจ้าหน้าที่พัสดุ' },
-  { id: 't2', first_name: 'วิชาญ', last_name: 'ชำนาญการ', position: 'หัวหน้าเจ้าหน้าที่พัสดุ' },
+  { id: 't1', first_name: 'สมหมาย', last_name: 'ใจดี', position: 'เจ้าหน้าที่' },
+  { id: 't2', first_name: 'วิชาญ', last_name: 'ชำนาญการ', position: 'หัวหน้าเจ้าหน้าที่' },
   { id: 't3', first_name: 'รัตนา', last_name: 'สุขใจ', position: 'ครูชำนาญการพิเศษ' },
   { id: 't4', first_name: 'ประสิทธิ์', last_name: 'มั่นคง', position: 'ครูชำนาญการ' },
   { id: 't5', first_name: 'สุดา', last_name: 'จันทร์สว่าง', position: 'ครู' }
@@ -202,7 +203,7 @@ const INITIAL_DEMO_CASES = [
 
 export default function Procurement() {
   const { user } = useAuth();
-  const [view, setView] = useState<'dashboard' | 'wizard' | 'detail'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'wizard' | 'detail' | 'registry'>('dashboard');
   const [loading, setLoading] = useState<boolean>(true);
 
   // Core Data State
@@ -488,7 +489,7 @@ export default function Procurement() {
   }
 
   // เตรียมข้อมูลสำหรับพิมพ์เอกสาร
-  function preparePrintData(c: any, its: any[]): ProcurementDocData {
+  function preparePrintData(c: any, its: any[], includeSignatures: boolean = true): ProcurementDocData {
     const requester = teachers.find(t => t.id === c.requester_id);
     const officer = teachers.find(t => t.id === c.officer_id);
     const headOfficer = teachers.find(t => t.id === c.head_officer_id);
@@ -516,14 +517,15 @@ export default function Procurement() {
       final_amount: Number(c.final_amount) || Number(c.estimated_amount) || 0,
       requester_name: requester ? `${requester.first_name} ${requester.last_name}` : c.requester_name || 'ครูผู้ขอ',
       requester_position: requester?.position || 'ครู',
-      officer_name: officer ? `${officer.first_name} ${officer.last_name}` : 'เจ้าหน้าที่พัสดุ',
-      officer_position: officer?.position || 'เจ้าหน้าที่พัสดุ',
+      officer_name: officer ? `${officer.first_name} ${officer.last_name}` : 'เจ้าหน้าที่',
+      officer_position: officer?.position || 'เจ้าหน้าที่',
       head_officer_name: headOfficer ? `${headOfficer.first_name} ${headOfficer.last_name}` : 'หัวหน้าเจ้าหน้าที่',
       head_officer_position: headOfficer?.position || 'หัวหน้าเจ้าหน้าที่',
       director_name: settings?.director_name || 'ผู้อำนวยการโรงเรียน',
       director_position: `ผู้อำนวยการ${settings?.school_name || 'โรงเรียนบ้านควนโคกยา'}`,
-      director_signature_url: settings?.director_signature_url,
-      school_stamp_url: settings?.school_logo_url,
+      director_signature_url: includeSignatures ? settings?.director_signature_url : undefined,
+      school_stamp_url: includeSignatures ? settings?.school_logo_url : undefined,
+      include_signatures: includeSignatures,
       vendor_info: c.vendor_info || { name: 'ผู้ขาย' },
       committee_members: (c.committee_members && c.committee_members.length > 0)
         ? c.committee_members
@@ -542,9 +544,9 @@ export default function Procurement() {
     };
   }
 
-  function handlePrintDoc(docType: string) {
+  function handlePrintDoc(docType: string, includeSignatures: boolean = true) {
     if (!selectedCaseData) return;
-    const printData = preparePrintData(selectedCaseData, selectedCaseItems);
+    const printData = preparePrintData(selectedCaseData, selectedCaseItems, includeSignatures);
     let html = '';
     let docTitle = '';
 
@@ -587,7 +589,7 @@ export default function Procurement() {
     ProcurementDocGenerator.printHtml(html, docTitle);
   }
 
-  function handlePrintBundle(targetCase?: any) {
+  function handlePrintBundle(targetCase?: any, includeSignatures: boolean = true) {
     const c = targetCase || selectedCaseData;
     if (!c) return;
 
@@ -596,12 +598,38 @@ export default function Procurement() {
       itemsForPrint = c.items || [{ item_name: c.title, quantity: 1, unit: 'งาน', unit_price: c.estimated_amount, total_price: c.estimated_amount }];
     }
 
-    const printData = preparePrintData(c, itemsForPrint);
+    const printData = preparePrintData(c, itemsForPrint, includeSignatures);
     ProcurementDocGenerator.printBundle(printData);
   }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Top Level Navigation Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setView('dashboard')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
+              view === 'dashboard' || view === 'detail' || view === 'wizard'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+            }`}
+          >
+            <span>📋 แฟ้มสำนวนจัดซื้อจัดจ้าง (Procurement Cases)</span>
+          </button>
+          <button
+            onClick={() => setView('registry')}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
+              view === 'registry'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+            }`}
+          >
+            <span>🏷️ ระบบทะเบียนคุมพัสดุและครุภัณฑ์ (Asset & Supplies)</span>
+          </button>
+        </div>
+      </div>
+
       {view === 'dashboard' && (
         <ProcurementDashboard
           cases={cases}
@@ -630,8 +658,8 @@ export default function Procurement() {
           onBack={() => setView('dashboard')}
           onUpdateCase={handleUpdateCase}
           onDeleteCase={handleDeleteCase}
-          onPrintDoc={handlePrintDoc}
-          onPrintBundle={() => handlePrintBundle(selectedCaseData)}
+          onPrintDoc={(docType, incSig) => handlePrintDoc(docType, incSig)}
+          onPrintBundle={(incSig) => handlePrintBundle(selectedCaseData, incSig)}
         />
       )}
 
@@ -641,6 +669,13 @@ export default function Procurement() {
           budgets={budgets}
           onClose={() => setView('dashboard')}
           onSubmit={handleCreateCase}
+        />
+      )}
+
+      {view === 'registry' && (
+        <AssetSuppliesRegistry
+          onBack={() => setView('dashboard')}
+          teachers={teachers}
         />
       )}
     </div>

@@ -249,6 +249,41 @@ export class ProcurementNumberingService {
   }
 
   /**
+   * ตรวจสอบความถูกต้องของคณะกรรมการตรวจรับพัสดุ
+   * - วงเงิน <= 10,000 (ว.119): ผู้ตรวจรับ 1 คนได้
+   * - วงเงิน > 10,000 (ว.89 / ระเบียบข้อ 25): ต้องเป็นคณะกรรมการ >= 3 คน
+   * - กฎเหล็กข้อ 25 วรรคสี่: "ห้ามเจ้าหน้าที่และหัวหน้าเจ้าหน้าที่เป็นกรรมการตรวจรับพัสดุ"
+   */
+  static validateCommittee(
+    policyCode: string,
+    estimatedAmount: number,
+    committeeMembers: { name: string; role: string }[],
+    officerName?: string,
+    headOfficerName?: string
+  ): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // 1. ตรวจสอบข้อห้ามระเบียบข้อ 25 วรรคสี่
+    if (officerName) {
+      const isOfficerInCommittee = committeeMembers.some(m => m.name.trim() === officerName.trim());
+      if (isOfficerInCommittee) {
+        errors.push('ผิดระเบียบข้อ 25: เจ้าหน้าที่ ห้ามได้รับการแต่งตั้งเป็นกรรมการตรวจรับพัสดุในเรื่องเดียวกัน');
+      }
+    }
+    if (headOfficerName) {
+      const isHeadInCommittee = committeeMembers.some(m => m.name.trim() === headOfficerName.trim());
+      if (isHeadInCommittee) {
+        errors.push('ผิดระเบียบข้อ 25: หัวหน้าเจ้าหน้าที่ ห้ามได้รับการแต่งตั้งเป็นกรรมการตรวจรับพัสดุในเรื่องเดียวกัน');
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
    * ตรวจสอบความถูกต้องของลำดับวันเดือนปี (Chronological Integrity Guard)
    * กฎเหล็ก: วันที่บันทึกขอ <= วันที่รายงานขอซื้อ <= วันที่คำสั่งแต่งตั้ง <= วันที่ PO <= วันที่ส่งมอบ <= วันที่ตรวจรับ
    */

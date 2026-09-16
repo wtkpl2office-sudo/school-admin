@@ -58,6 +58,7 @@ export interface ProcurementDocData {
   }[];
   custom_clauses?: string;
   director_opinion?: string;
+  include_signatures?: boolean;
 }
 
 /**
@@ -370,7 +371,7 @@ export class ProcurementDocGenerator {
         <div style="margin-top: 25px; border-top: 1px dashed #666; padding-top: 10px;">
           <div style="font-weight: bold;">คำสั่ง / การสั่งการผู้อำนวยการ:</div>
           <div style="margin-top: 5px;">
-            [ &nbsp; ] อนุมัติ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [ &nbsp; ] มอบเจ้าหน้าที่พัสดุดำเนินการตามระเบียบต่อไป
+            [ &nbsp; ] อนุมัติ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [ &nbsp; ] มอบเจ้าหน้าที่ดำเนินการตามระเบียบต่อไป
           </div>
           <div class="sig-section" style="margin-top: 15px;">
             <div class="sig-box">
@@ -410,7 +411,7 @@ export class ProcurementDocGenerator {
           <span class="info-label">เรียน</span> ผู้อำนวยการ${data.school_name}
         </div>
         <div class="content-p">
-          ด้วย งานพัสดุ ${data.school_name} มีความประสงค์จะดำเนินการจัดซื้อจัดจ้าง รายการ <b>${data.title}</b> ตามที่ได้รับอนุมัติหลักการไว้แล้วนั้น เจ้าหน้าที่พัสดุได้ตรวจสอบความพร้อมแล้ว จึงขอรายงานขอซื้อขอจ้างตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 22 ดังนี้:
+          ด้วย งานพัสดุ ${data.school_name} มีความประสงค์จะดำเนินการจัดซื้อจัดจ้าง รายการ <b>${data.title}</b> ตามที่ได้รับอนุมัติหลักการไว้แล้วนั้น เจ้าหน้าที่ได้ตรวจสอบความพร้อมแล้ว จึงขอรายงานขอซื้อขอจ้างตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 22 ดังนี้:
         </div>
 
         <div style="margin-left: 1cm; line-height: 1.5;">
@@ -431,7 +432,7 @@ export class ProcurementDocGenerator {
 
         <div class="sig-section">
           <div class="sig-box">
-            (ลงชื่อ)...................................................... เจ้าหน้าที่พัสดุ<br/>
+            (ลงชื่อ)...................................................... เจ้าหน้าที่<br/>
             ( ${data.officer_name} )
           </div>
         </div>
@@ -617,7 +618,7 @@ export class ProcurementDocGenerator {
         <div style="margin-left: 1.5cm; margin-top: 10px; line-height: 1.6;">
           [ ✓ ] พัสดุถูกต้อง ครบถ้วน ตรงตามคุณลักษณะเฉพาะและเงื่อนไขในใบสั่งซื้อ/สัญญา ทุกประการ<br/>
           [ ✓ ] ส่งมอบภายในกำหนดเวลา ไม่มีค่าปรับ<br/>
-          [ ✓ ] เห็นควรรับมอบพัสดุไว้ และส่งมอบให้เจ้าหน้าที่พัสดุลงทะเบียนคุม พร้อมขออนุมัติเบิกจ่ายเงินให้แก่ผู้ขายต่อไป
+          [ ✓ ] เห็นควรรับมอบพัสดุไว้ และส่งมอบให้เจ้าหน้าที่ลงทะเบียนคุม พร้อมขออนุมัติเบิกจ่ายเงินให้แก่ผู้ขายต่อไป
         </div>
 
         <div style="margin-top: 30px;">
@@ -682,7 +683,7 @@ export class ProcurementDocGenerator {
         </div>
 
         <div style="margin-top: 20px; border-top: 1px dashed #000; padding-top: 10px;">
-          <div style="font-weight: bold;">ความเห็นของหัวหน้าเจ้าหน้าที่พัสดุ:</div>
+          <div style="font-weight: bold;">ความเห็นของหัวหน้าเจ้าหน้าที่:</div>
           <div style="margin-top: 4px;">เห็นชอบตามนัย ว.119 รายการพัสดุถูกต้องและเอกสารใบเสร็จครบถ้วน</div>
           <div class="sig-section" style="margin-top: 10px;">
             <div class="sig-box">
@@ -785,7 +786,7 @@ export class ProcurementDocGenerator {
               <td style="width: 50%; text-align: center; vertical-align: top; padding-top: 20px;">
                 (ลงชื่อ)...................................................... พยาน<br/>
                 ( ${data.officer_name} )<br/>
-                เจ้าหน้าที่พัสดุ
+                เจ้าหน้าที่
               </td>
             </tr>
           </table>
@@ -865,7 +866,7 @@ export class ProcurementDocGenerator {
   /**
    * สั่งพิมพ์เอกสารไปยังหน้าต่างพิมพ์ใหม่
    */
-  static printHtml(htmlContent: string, title: string = 'เอกสารจัดซื้อจัดจ้าง') {
+  static printHtml(htmlContent: string, title: string = 'เอกสารจัดซื้อจัดจ้าง', initialIncludeSigs: boolean = true) {
     const fullHtml = `
       <!DOCTYPE html>
       <html lang="th">
@@ -873,15 +874,36 @@ export class ProcurementDocGenerator {
           <meta charset="utf-8">
           <title>${title}</title>
           <style>${this.getOfficialCss()}</style>
+          <script>
+            function toggleSignatures(show) {
+              var sigs = document.querySelectorAll('.sig-img, .stamp-img');
+              sigs.forEach(function(el) {
+                el.style.display = show ? 'block' : 'none';
+              });
+            }
+          </script>
         </head>
         <body>
           <div class="no-print-bar">
-            <div>📄 <b>ระบบพิมพ์เอกสารพัสดุราชการ:</b> ${title}</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <div>📄 <b>ระบบพิมพ์เอกสารพัสดุราชการ:</b> ${title}</div>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; background: #334155; padding: 5px 12px; border-radius: 8px; user-select: none;">
+                <input 
+                  type="checkbox" 
+                  id="sigToggle" 
+                  onchange="toggleSignatures(this.checked)" 
+                  ${initialIncludeSigs ? 'checked' : ''} 
+                  style="width: 16px; height: 16px; cursor: pointer;" 
+                />
+                <span>ประทับลายเซ็น/ตราดิจิทัล (ติ๊กออก = เว้นว่างไว้เซ็นสดด้วยปากกา)</span>
+              </label>
+            </div>
             <button class="print-btn" onclick="window.print()">🖨️ สั่งพิมพ์เอกสาร (A4)</button>
           </div>
           <div style="padding-top: 60px;">
             ${htmlContent}
           </div>
+          ${!initialIncludeSigs ? '<script>toggleSignatures(false);</script>' : ''}
         </body>
       </html>
     `;
@@ -898,6 +920,7 @@ export class ProcurementDocGenerator {
    */
   static printBundle(data: ProcurementDocData) {
     let bundleHtml = '';
+    const showSig = data.include_signatures !== false;
 
     if (data.policy_code === 'W119_10K') {
       // ว.119 ไม่เกิน 1 หมื่น พิมพ์บันทึกขอความเห็นชอบ 1 ชุดจบ
@@ -918,6 +941,6 @@ export class ProcurementDocGenerator {
       bundleHtml += this.renderInspectionCertificate(data);
     }
 
-    this.printHtml(bundleHtml, `ชุดเอกสารพัสดุ_${data.pcid}`);
+    this.printHtml(bundleHtml, `ชุดเอกสารพัสดุ_${data.pcid}`, showSig);
   }
 }
