@@ -8,3 +8,4 @@ dist-installer
 .vercel
 .env*.local
 scratch/
+backup*.json
