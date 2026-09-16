@@ -19,7 +19,9 @@ import {
   Download,
   ChevronRight,
   ExternalLink,
-  Trash2
+  Trash2,
+  Edit3,
+  X
 } from 'lucide-react';
 import { ProcurementNumberingService } from '../../services/procurementNumberingService';
 import { thaiBahtText } from '../../services/procurementDocGenerator';
@@ -47,6 +49,33 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
 }) => {
   const [activeGateTab, setActiveGateTab] = useState<number>(caseData.current_gate || 1);
   const [updating, setUpdating] = useState(false);
+  const [isEditingNumbers, setIsEditingNumbers] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    memo_number: caseData.memo_number || '',
+    request_date: caseData.request_date || '',
+    pr_number: caseData.pr_number || '',
+    pr_approval_date: caseData.pr_approval_date || '',
+    order_number: caseData.order_number || '',
+    order_appointment_date: caseData.order_appointment_date || '',
+    po_number: caseData.po_number || '',
+    po_date: caseData.po_date || '',
+    inspection_number: caseData.inspection_number || '',
+    inspection_date: caseData.inspection_date || '',
+    delivery_due_date: caseData.delivery_due_date || ''
+  });
+
+  const handleSaveNumbers = async () => {
+    setUpdating(true);
+    try {
+      await onUpdateCase(editFormData);
+      setIsEditingNumbers(false);
+      alert('บันทึกการปรับปรุงเลขที่และวันที่เอกสารเรียบร้อยแล้ว');
+    } catch (e: any) {
+      alert(`บันทึกไม่สำเร็จ: ${e.message}`);
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const amount = Number(caseData.final_amount) || Number(caseData.estimated_amount) || 0;
 
@@ -146,6 +175,29 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setEditFormData({
+                memo_number: caseData.memo_number || '',
+                request_date: caseData.request_date || '',
+                pr_number: caseData.pr_number || '',
+                pr_approval_date: caseData.pr_approval_date || '',
+                order_number: caseData.order_number || '',
+                order_appointment_date: caseData.order_appointment_date || '',
+                po_number: caseData.po_number || '',
+                po_date: caseData.po_date || '',
+                inspection_number: caseData.inspection_number || '',
+                inspection_date: caseData.inspection_date || '',
+                delivery_due_date: caseData.delivery_due_date || ''
+              });
+              setIsEditingNumbers(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer"
+            title="ปรับแก้เลขที่หนังสือและวันที่ตามเอกสารจริง"
+          >
+            <Edit3 size={16} />
+            <span>แก้ไขเลขที่/วันที่</span>
+          </button>
           {onDeleteCase && (
             <button
               onClick={() => onDeleteCase(caseData.id)}
@@ -619,6 +671,153 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
         </div>
 
       </div>
+
+      {/* Edit Numbers & Dates Modal */}
+      {isEditingNumbers && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-bold text-base text-slate-800">ปรับแก้เลขที่เอกสารและวันที่ตามจริง</h3>
+                <p className="text-xs text-slate-500">สามารถแก้ไขให้ตรงกับสมุดทะเบียนคุมหรือเอกสารราชการจริงของโรงเรียนได้</p>
+              </div>
+              <button
+                onClick={() => setIsEditingNumbers(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto p-1">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">เลขที่บันทึกข้อความ (ขออนุมัติ)</label>
+                <input
+                  type="text"
+                  value={editFormData.memo_number}
+                  onChange={(e) => setEditFormData({ ...editFormData, memo_number: e.target.value })}
+                  placeholder="เช่น ที่ ศธ 04225/12"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">วันที่ขออนุมัติ</label>
+                <input
+                  type="date"
+                  value={editFormData.request_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, request_date: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">เลขที่รายงานขอซื้อ/จ้าง (พด.)</label>
+                <input
+                  type="text"
+                  value={editFormData.pr_number}
+                  onChange={(e) => setEditFormData({ ...editFormData, pr_number: e.target.value })}
+                  placeholder="เช่น พด. 12/2569"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">วันที่เห็นชอบรายงานข้อ 22</label>
+                <input
+                  type="date"
+                  value={editFormData.pr_approval_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, pr_approval_date: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">เลขที่คำสั่งแต่งตั้ง กก.ตรวจรับ</label>
+                <input
+                  type="text"
+                  value={editFormData.order_number}
+                  onChange={(e) => setEditFormData({ ...editFormData, order_number: e.target.value })}
+                  placeholder="เช่น คำสั่งที่ 28/2569"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">วันที่สั่งแต่งตั้ง</label>
+                <input
+                  type="date"
+                  value={editFormData.order_appointment_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, order_appointment_date: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  {caseData.policy_code === 'W877' ? 'เลขที่ข้อตกลงจ้าง (ว.877)' : 'เลขที่ใบสั่งซื้อ (PO)'}
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.po_number}
+                  onChange={(e) => setEditFormData({ ...editFormData, po_number: e.target.value })}
+                  placeholder="เช่น PO-12/2569 หรือ 12/2569"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  {caseData.policy_code === 'W877' ? 'วันที่ทำข้อตกลงจ้าง' : 'วันที่ออกใบสั่งซื้อ (PO)'}
+                </label>
+                <input
+                  type="date"
+                  value={editFormData.po_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, po_date: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">เลขที่ใบตรวจรับพัสดุ</label>
+                <input
+                  type="text"
+                  value={editFormData.inspection_number}
+                  onChange={(e) => setEditFormData({ ...editFormData, inspection_number: e.target.value })}
+                  placeholder="เช่น ตรวจรับ 12/2569"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">วันที่ตรวจรับจริง</label>
+                <input
+                  type="date"
+                  value={editFormData.inspection_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, inspection_date: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <button
+                onClick={() => setIsEditingNumbers(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleSaveNumbers}
+                disabled={updating}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {updating ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
