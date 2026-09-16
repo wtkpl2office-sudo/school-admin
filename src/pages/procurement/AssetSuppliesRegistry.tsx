@@ -190,6 +190,7 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
 
   // Form States
   const [assetForm, setAssetForm] = useState({
+    asset_code: '',
     name: '',
     brand_model: '',
     serial_number: '',
@@ -206,6 +207,7 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
   });
 
   const [supplyForm, setSupplyForm] = useState({
+    item_code: '',
     name: '',
     category: 'วัสดุสำนักงาน',
     unit: 'ชิ้น',
@@ -235,9 +237,9 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
     e.preventDefault();
     if (!assetForm.name.trim()) return;
 
-    // เจนรหัสครุภัณฑ์อัตโนมัติ
+    // รหัสครุภัณฑ์ (ถ้าผู้ใช้ไม่ได้ระบุ ให้ใช้ค่าที่เจนตามลำดับ)
     const nextSeq = String(assets.length + 1).padStart(4, '0');
-    const asset_code = `7110-001-${nextSeq}/2569`;
+    const asset_code = assetForm.asset_code.trim() || `7110-001-${nextSeq}/2569`;
 
     const newRecord: AssetRecord = {
       id: `ast-${Date.now()}`,
@@ -261,6 +263,7 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
     setAssets([newRecord, ...assets]);
     setIsAddAssetModalOpen(false);
     setAssetForm({
+      asset_code: '',
       name: '',
       brand_model: '',
       serial_number: '',
@@ -284,7 +287,7 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
     if (!supplyForm.name.trim()) return;
 
     const nextSeq = String(supplies.length + 1).padStart(3, '0');
-    const item_code = `SUP-2569-${nextSeq}`;
+    const item_code = supplyForm.item_code.trim() || `SUP-2569-${nextSeq}`;
     const qty = Number(supplyForm.quantity_received) || 0;
     const price = Number(supplyForm.unit_price) || 0;
 
@@ -579,7 +582,26 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
               </button>
 
               <button
-                onClick={() => setIsAddAssetModalOpen(true)}
+                onClick={() => {
+                  const nextSeq = String(assets.length + 1).padStart(4, '0');
+                  setAssetForm({
+                    asset_code: `7110-001-${nextSeq}/2569`,
+                    name: '',
+                    brand_model: '',
+                    serial_number: '',
+                    category: 'ครุภัณฑ์คอมพิวเตอร์',
+                    acquired_date: new Date().toISOString().split('T')[0],
+                    po_number: '',
+                    inspection_number: '',
+                    budget_source: 'เงินอุดหนุนรายหัวนักเรียน',
+                    unit_price: 0,
+                    location: 'อาคารเรียน 1',
+                    custodian_name: '',
+                    status: 'active',
+                    remarks: ''
+                  });
+                  setIsAddAssetModalOpen(true);
+                }}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
               >
                 <Plus size={16} />
@@ -589,7 +611,19 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
           ) : (
             <>
               <button
-                onClick={() => setIsAddSupplyModalOpen(true)}
+                onClick={() => {
+                  const nextSeq = String(supplies.length + 1).padStart(3, '0');
+                  setSupplyForm({
+                    item_code: `SUP-2569-${nextSeq}`,
+                    name: '',
+                    category: 'วัสดุสำนักงาน',
+                    unit: 'ชิ้น',
+                    quantity_received: 1,
+                    unit_price: 0,
+                    storage_location: 'ตู้เก็บพัสดุห้องธุรการ'
+                  });
+                  setIsAddSupplyModalOpen(true);
+                }}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
               >
                 <Plus size={16} />
@@ -764,6 +798,54 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
             </div>
 
             <form onSubmit={handleSaveAsset} className="space-y-4 text-xs">
+              {/* กำหนดรหัสครุภัณฑ์ & ตัวอักษรนำหน้า */}
+              <div className="space-y-2 p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-emerald-900 text-xs">รหัสครุภัณฑ์ (Asset Code) *</label>
+                  <span className="text-[10px] text-emerald-600 font-medium">แก้ไขตัวอักษรหรือตัวเลขได้อิสระ</span>
+                </div>
+
+                {/* Quick Prefix Selectors */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span className="text-slate-500 font-bold">ตัวเลือกมาตรฐาน:</span>
+                  {[
+                    { label: '7110- (คอมพิวเตอร์)', prefix: '7110-001-' },
+                    { label: '7440- (สำนักงาน)', prefix: '7440-001-' },
+                    { label: 'ครุ-2569- (ทั่วไป)', prefix: 'ครุ-2569-' },
+                    { label: 'คคย-ครุ- (รหัส รร.)', prefix: 'คคย-ครุ-2569/' }
+                  ].map(p => {
+                    const nextSeq = String(assets.length + 1).padStart(4, '0');
+                    return (
+                      <button
+                        key={p.prefix}
+                        type="button"
+                        onClick={() => {
+                          setAssetForm(prev => ({
+                            ...prev,
+                            asset_code: p.prefix.endsWith('/') ? `${p.prefix}${nextSeq}` : `${p.prefix}${nextSeq}/2569`
+                          }));
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold cursor-pointer transition-colors"
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น 7110-001-0001/2569, ครุ-2569-0001"
+                  value={assetForm.asset_code}
+                  onChange={(e) => setAssetForm({ ...assetForm, asset_code: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-emerald-300 bg-white font-mono font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500"
+                />
+                <p className="text-[10px] text-slate-500">
+                  สามารถระบุรหัสสินทรัพย์ สพฐ./กรมบัญชีกลาง หรือรหัสภายในของโรงเรียนได้
+                </p>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 mb-1">ชื่อครุภัณฑ์ *</label>
                 <input
@@ -880,6 +962,55 @@ export const AssetSuppliesRegistry: React.FC<AssetSuppliesRegistryProps> = ({ on
             </div>
 
             <form onSubmit={handleSaveSupply} className="space-y-4 text-xs">
+              {/* กำหนดรหัสวัสดุ & ตัวอักษรนำหน้า */}
+              <div className="space-y-2 p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-blue-900 text-xs">รหัสวัสดุ (Item Code) *</label>
+                  <span className="text-[10px] text-blue-600 font-medium">แก้ไขตัวอักษรได้อิสระ</span>
+                </div>
+
+                {/* Quick Prefix Selectors */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span className="text-slate-500 font-bold">ตัวเลือกนำหน้า:</span>
+                  {[
+                    { label: 'SUP (สากล)', prefix: 'SUP' },
+                    { label: 'วสด (วัสดุ)', prefix: 'วสด' },
+                    { label: 'ว (สั้น)', prefix: 'ว' },
+                    { label: 'สภ (สำนักงาน)', prefix: 'สภ' },
+                    { label: 'คพ (คอมฯ)', prefix: 'คพ' }
+                  ].map(p => {
+                    const nextSeq = String(supplies.length + 1).padStart(3, '0');
+                    return (
+                      <button
+                        key={p.prefix}
+                        type="button"
+                        onClick={() => {
+                          setSupplyForm(prev => ({
+                            ...prev,
+                            item_code: `${p.prefix}-2569-${nextSeq}`
+                          }));
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-white hover:bg-blue-100 text-blue-800 border border-blue-200 font-bold cursor-pointer transition-colors"
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น SUP-2569-001, วสด-2569-001, คคย-ว-01"
+                  value={supplyForm.item_code}
+                  onChange={(e) => setSupplyForm({ ...supplyForm, item_code: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-blue-300 bg-white font-mono font-bold text-blue-800 focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-[10px] text-slate-500">
+                  สามารถระบุตัวอักษรใดก็ได้ตามระบบทะเบียนคุมของโรงเรียน (เช่น วสด-2569-001 หรือชื่อย่อโรงเรียน)
+                </p>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 mb-1">ชื่อวัสดุ *</label>
                 <input
