@@ -346,6 +346,7 @@ export default function Procurement() {
 
   async function handleCreateCase(caseData: any, items: any[]) {
     try {
+      let errorMsg = '';
       let savedToDb = false;
 
       // 1. พยายามบันทึกไปยัง Supabase
@@ -356,7 +357,10 @@ export default function Procurement() {
           .select()
           .single();
 
-        if (!caseErr && newCase) {
+        if (caseErr) {
+          console.error('[PROCUREMENT DB INSERT ERROR]', caseErr);
+          errorMsg = caseErr.message;
+        } else if (newCase) {
           savedToDb = true;
           if (items.length > 0) {
             const itemRows = items.map(it => ({
@@ -368,27 +372,38 @@ export default function Procurement() {
               unit_price: it.unit_price,
               total_price: it.total_price
             }));
-            await supabase.from('procurement_case_items').insert(itemRows);
+            const { error: itemsErr } = await supabase.from('procurement_case_items').insert(itemRows);
+            if (itemsErr) {
+              console.error('[PROCUREMENT ITEMS INSERT ERROR]', itemsErr);
+            }
           }
         }
-      } catch {
+      } catch (err: any) {
+        console.error('[PROCUREMENT EXCEPTION]', err);
         savedToDb = false;
+        errorMsg = err.message;
       }
 
-      // 2. บันทึกสำรองใน LocalStorage เสมอ เพื่อให้การทดสอบออฟไลน์ใช้งานได้ทันที
-      const localStored = localStorage.getItem('local_procurement_cases');
-      const localList: any[] = localStored ? JSON.parse(localStored) : [];
-      const newLocalCase = {
-        ...caseData,
-        id: `local-${Date.now()}`,
-        items: items,
-        created_at: new Date().toISOString()
-      };
-      localList.unshift(newLocalCase);
-      localStorage.setItem('local_procurement_cases', JSON.stringify(localList));
+      if (!savedToDb) {
+        // บันทึกสำรองใน LocalStorage กรณีออฟไลน์
+        const localStored = localStorage.getItem('local_procurement_cases');
+        const localList: any[] = localStored ? JSON.parse(localStored) : [];
+        const newLocalCase = {
+          ...caseData,
+          id: `local-${Date.now()}`,
+          items: items,
+          created_at: new Date().toISOString()
+        };
+        localList.unshift(newLocalCase);
+        localStorage.setItem('local_procurement_cases', JSON.stringify(localList));
+      }
 
       await fetchCases();
-      alert(`บันทึกเปิดสำนวนจัดซื้อจัดจ้างสำเร็จเรียบร้อย! ${savedToDb ? '(บันทึกลงฐานข้อมูลแล้ว)' : '(โหมดทดสอบออฟไลน์)'}`);
+      if (savedToDb) {
+        alert('บันทึกเปิดสำนวนจัดซื้อจัดจ้างลงฐานข้อมูลสำเร็จเรียบร้อยแล้วค่ะ');
+      } else {
+        alert(`บันทึกเปิดสำนวนจัดซื้อจัดจ้างสำเร็จเรียบร้อย! (โหมดทดสอบออฟไลน์: ${errorMsg || 'ฐานข้อมูลขัดข้อง'})`);
+      }
     } catch (e: any) {
       console.error(e);
       alert(`บันทึกไม่สำเร็จ: ${e.message}`);
