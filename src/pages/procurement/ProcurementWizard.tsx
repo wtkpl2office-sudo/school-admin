@@ -60,6 +60,8 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
   const [policyCode, setPolicyCode] = useState('W089');
   const [budgetId, setBudgetId] = useState(budgets[0]?.id || '');
   const [fiscalYear, setFiscalYear] = useState('2569');
+  const [requestDate, setRequestDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customMemoNumber, setCustomMemoNumber] = useState('');
 
   // Vendor Info
   const [vendorName, setVendorName] = useState('');
@@ -295,7 +297,10 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
         if (extracted.address) setVendorAddress(extracted.address);
         if (extracted.phone) setVendorPhone(extracted.phone);
         if (extracted.receipt_no) setReceiptNo(extracted.receipt_no);
-        if (extracted.receipt_date) setReceiptDate(extracted.receipt_date);
+        if (extracted.receipt_date) {
+          setReceiptDate(extracted.receipt_date);
+          setRequestDate(extracted.receipt_date);
+        }
 
         if (extracted.items && extracted.items.length > 0) {
           setItems(extracted.items.map(it => ({
@@ -339,11 +344,18 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
       const pcid = await ProcurementNumberingService.generateNextPCID(fiscalYear);
       const prNumber = await ProcurementNumberingService.getNextPRNumber(fiscalYear);
 
-      // 2. ดึงชื่อครูผู้ขอเพื่อสำรองเลข memo
+      // 2. จัดการเลขที่บันทึกข้อความ (ใช้เลขที่ระบุเอง หรือสำรองเลขอัตโนมัติ)
       const requester = teachers.find(t => t.id === requesterId);
       const requesterName = requester ? `${requester.first_name} ${requester.last_name}` : 'เจ้าหน้าที่';
       
-      const { memo_id, memo_number } = await ProcurementNumberingService.reserveNextMemoNumber(fiscalYear, title, requesterName);
+      let finalMemoNumber = customMemoNumber.trim();
+      let finalMemoId = null;
+
+      if (!finalMemoNumber) {
+        const { memo_id, memo_number } = await ProcurementNumberingService.reserveNextMemoNumber(fiscalYear, title, requesterName);
+        finalMemoNumber = memo_number;
+        finalMemoId = memo_id;
+      }
 
       const caseData = {
         pcid,
@@ -357,8 +369,11 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
         status: policyCode === 'W119_10K' ? 'delivered' : 'pending_approval',
         fiscal_year: fiscalYear,
         academic_year: fiscalYear,
-        memo_request_id: memo_id || null,
+        memo_number: finalMemoNumber,
+        memo_request_id: finalMemoId || null,
+        request_date: requestDate,
         pr_number: prNumber,
+        pr_approval_date: requestDate,
         requester_id: requesterId || null,
         officer_id: officerId || null,
         head_officer_id: headOfficerId || null,
@@ -448,6 +463,33 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    วันที่ขออนุมัติ * <span className="text-xs font-normal text-blue-600">(ลงวันที่ย้อนหลังได้ตามจริง)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={requestDate}
+                    onChange={(e) => setRequestDate(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    เลขที่บันทึกข้อความ <span className="text-xs font-normal text-slate-400">(ระบุเลขจอง หรือเว้นว่างให้ระบบออกให้)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="เว้นว่างไว้ = ระบบออกเลขต่อจากสมุดกลางให้อัตโนมัติ"
+                    value={customMemoNumber}
+                    onChange={(e) => setCustomMemoNumber(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
