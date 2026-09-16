@@ -339,7 +339,7 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
                     >
                       <Printer size={14} />
-                      <span>พิมพ์ PO</span>
+                      <span>{caseData.policy_code === 'W877' ? 'พิมพ์ข้อตกลงจ้าง ว.877' : 'พิมพ์ PO'}</span>
                     </button>
                   </div>
                 </div>
@@ -350,7 +350,9 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                     <span className="font-bold text-slate-700">{caseData.order_number || 'คำสั่งที่ ...'}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-400 block">เลขที่ใบสั่งซื้อ (PO):</span>
+                    <span className="text-xs text-slate-400 block">
+                      {caseData.policy_code === 'W877' ? 'เลขที่ข้อตกลงจ้าง (ว.877):' : 'เลขที่ใบสั่งซื้อ (PO):'}
+                    </span>
                     <span className="font-bold text-slate-700">{caseData.po_number || 'PO-...'}</span>
                   </div>
                   <div>
@@ -359,7 +361,9 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                   </div>
                   <div>
                     <span className="text-xs text-slate-400 block">กำหนดส่งมอบ:</span>
-                    <span className="font-bold text-slate-700">{caseData.delivery_due_date || 'ภายใน 15 วันทำการ'}</span>
+                    <span className="font-bold text-slate-700">
+                      {caseData.policy_code === 'W877' ? 'ส่งมอบรายเดือน (ภายใน 5 วันทำการ)' : (caseData.delivery_due_date || 'ภายใน 15 วันทำการ')}
+                    </span>
                   </div>
                 </div>
 
@@ -370,7 +374,9 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                       disabled={updating}
                       className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md cursor-pointer transition-all"
                     >
-                      ผู้ขายส่งมอบพัสดุแล้ว ➔ เข้าสู่ด่านตรวจรับพัสดุ (Gate 4)
+                      {caseData.policy_code === 'W877' 
+                        ? 'ส่งมอบงานจ้างงวดแรกแล้ว ➔ เข้าสู่ด่านตรวจรับงานจ้าง (Gate 4)' 
+                        : 'ผู้ขายส่งมอบพัสดุแล้ว ➔ เข้าสู่ด่านตรวจรับพัสดุ (Gate 4)'}
                     </button>
                   </div>
                 )}
@@ -382,15 +388,23 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div>
-                    <h3 className="font-bold text-base text-slate-800">Gate 4: ส่งมอบและตรวจรับพัสดุ (Delivery & Acceptance)</h3>
-                    <p className="text-xs text-slate-500">คณะกรรมการตรวจรับพัสดุลงนามตรวจรับของจริง</p>
+                    <h3 className="font-bold text-base text-slate-800">
+                      {caseData.policy_code === 'W877' 
+                        ? 'Gate 4: ตรวจรับผลงานจ้างรายเดือน (Monthly Service Acceptance)' 
+                        : 'Gate 4: ส่งมอบและตรวจรับพัสดุ (Delivery & Acceptance)'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {caseData.policy_code === 'W877' 
+                        ? 'คณะกรรมการตรวจรับพัสดุลงนามรับรองผลการปฏิบัติงานตาม TOR เพื่อเบิกจ่ายรายเดือน' 
+                        : 'คณะกรรมการตรวจรับพัสดุลงนามตรวจรับของจริง'}
+                    </p>
                   </div>
                   <button
                     onClick={() => onPrintDoc('inspection_report')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     <Printer size={14} />
-                    <span>พิมพ์ใบตรวจรับ</span>
+                    <span>{caseData.policy_code === 'W877' ? 'พิมพ์ใบตรวจรับรายเดือน' : 'พิมพ์ใบตรวจรับ'}</span>
                   </button>
                 </div>
 

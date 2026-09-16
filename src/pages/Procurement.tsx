@@ -160,6 +160,43 @@ const INITIAL_DEMO_CASES = [
       { item_name: 'งานขูดลอกสีเดิมและทาสีน้ำพลาสติกอาคารเรียน (รวมค่า Factor F)', quantity: 480, unit: 'ตร.ม.', unit_price: 182.91, total_price: 87800 }
     ],
     created_at: '2026-09-14T11:20:00Z'
+  },
+  {
+    id: 'demo-admin',
+    pcid: 'PRC-FY2569-00005',
+    title: 'จ้างเหมาบริการปฏิบัติงานธุรการโรงเรียน ประจำปีงบประมาณ 2569 (ว.877 บุคคลธรรมดา 12 เดือน)',
+    category: 'service_12m',
+    policy_code: 'W877',
+    estimated_amount: 180000,
+    final_amount: 180000,
+    current_gate: 4,
+    status: 'delivered',
+    fiscal_year: '2569',
+    academic_year: '2569',
+    memo_number: 'ที่ ศธ 04225/19',
+    request_date: '2026-09-08',
+    pr_number: 'พด. 19/2569',
+    order_number: 'คำสั่งที่ 36/2569',
+    po_number: 'PO-19/2569',
+    requester_name: 'วิชาญ ชำนาญการ',
+    vendor_info: {
+      name: 'นางสาวกัญญาภัทร เอกสารดี (ผู้รับจ้างเหมาบริการธุรการ)',
+      tax_id: '1930100456789',
+      phone: '089-7654321',
+      address: 'ต.ควนโคกยา อ.เขาชัยสน จ.พัทลุง'
+    },
+    committee_members: [
+      { name: 'รัตนา สุขใจ', role: 'ผู้ตรวจรับพัสดุ' }
+    ],
+    items: [
+      { item_name: 'จ้างเหมาบริการปฏิบัติงานธุรการ สารบรรณ และข้อมูลสารสนเทศ DMC/CCT (เดือนละ 15,000 บาท x 12 เดือน)', quantity: 12, unit: 'งวด', unit_price: 15000, total_price: 180000 }
+    ],
+    custom_clauses: `ขอบเขตของงานจ้างเหมาบริการ (TOR) ตำแหน่ง เจ้าหน้าที่ธุรการโรงเรียน:
+1. งานธุรการ สารบรรณ จัดเก็บเอกสาร หลักฐาน ทะเบียน และหนังสือราชการต่างๆ ทั้งระบบ e-office และการทำลายเอกสาร
+2. งานพัสดุ จัดลงทะเบียน คุมการเบิกจ่าย การจัดเก็บ รักษาดูแลความเป็นระเบียบเรียบร้อยของทรัพย์สินโรงเรียน
+3. งานข้อมูลสารสนเทศทางการศึกษา จัดระบบทะเบียน สำรวจ บันทึก และจัดทำรายงานข้อมูลในระบบ ICT (DMC, CCT ปัจจัยพื้นฐานนักเรียนยากจน, EMIS, B-OBEC)
+4. งานการเงินและบัญชี หรือภารกิจสนับสนุนการจัดการเรียนการสอนตามที่สถานศึกษาได้รับมอบหมาย`,
+    created_at: '2026-09-08T09:00:00Z'
   }
 ];
 
@@ -525,12 +562,22 @@ export default function Procurement() {
         docTitle = `คำสั่งแต่งตั้งกรรมการ_${printData.pcid}`;
         break;
       case 'po_order':
-        html = ProcurementDocGenerator.renderPO(printData);
-        docTitle = `ใบสั่งซื้อPO_${printData.pcid}`;
+        if (printData.policy_code === 'W877') {
+          html = ProcurementDocGenerator.renderW877Agreement(printData);
+          docTitle = `ข้อตกลงจ้างเหมาบริการว877_${printData.pcid}`;
+        } else {
+          html = ProcurementDocGenerator.renderPO(printData);
+          docTitle = `ใบสั่งซื้อPO_${printData.pcid}`;
+        }
         break;
       case 'inspection_report':
-        html = ProcurementDocGenerator.renderInspectionCertificate(printData);
-        docTitle = `ใบตรวจรับพัสดุ_${printData.pcid}`;
+        if (printData.policy_code === 'W877') {
+          html = ProcurementDocGenerator.renderW877MonthlyInspection(printData);
+          docTitle = `ใบตรวจรับงานจ้างรายเดือน_${printData.pcid}`;
+        } else {
+          html = ProcurementDocGenerator.renderInspectionCertificate(printData);
+          docTitle = `ใบตรวจรับพัสดุ_${printData.pcid}`;
+        }
         break;
       default:
         html = ProcurementDocGenerator.renderRequestMemo(printData);

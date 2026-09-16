@@ -710,6 +710,159 @@ export class ProcurementDocGenerator {
   }
 
   /**
+   * 4.1 ข้อตกลงจ้างเหมาบริการ 12 เดือน (ว.877 บุคคลธรรมดา: ธุรการโรงเรียน / นักการภารโรง / ครูอัตราจ้าง)
+   * อ้างอิงตามแบบมาตรฐาน สพป.พัทลุง เขต 2 และคำสั่ง สพฐ. ที่ 2493/2566 และ 215/2567
+   */
+  static renderW877Agreement(data: ProcurementDocData): string {
+    const totalAmount = data.final_amount || data.estimated_amount;
+    const monthlyAmount = totalAmount > 0 ? Math.round(totalAmount / 12) : 0;
+    const totalText = thaiBahtText(totalAmount);
+    const monthlyText = thaiBahtText(monthlyAmount);
+
+    return `
+      <div class="page">
+        <div style="text-align: center; margin-bottom: 12px;">
+          <img src="${garuda3cm}" class="garuda-30" />
+          <div style="font-size: 20pt; font-weight: bold; margin-top: 5px;">ข้อตกลงจ้างเหมาบริการ</div>
+          <div style="font-size: 13pt; color: #444;">(ตามหนังสือคณะกรรมการวินิจฉัยปัญหาการจัดซื้อจัดจ้างฯ ด่วนที่สุด ที่ กค (กวจ) 0405.2/ว 877)</div>
+          <div style="font-size: 15pt; font-weight: bold; margin-top: 4px;">เลขที่ ${data.po_number || '............../' + (data.memo_number?.split('/')[1] || '2569')}</div>
+        </div>
+
+        <div class="content-p">
+          ข้อตกลงฉบับนี้ทำขึ้น ณ <b>${data.school_name}</b> ตำบลควนโคกยา อำเภอเขาชัยสน จังหวัดพัทลุง เมื่อวันที่ ${formatThaiDate(data.po_date || data.request_date)} ระหว่าง <b>${data.school_name}</b> โดย <b>${data.director_name}</b> ตำแหน่ง ${data.director_position} ผู้ได้รับมอบอำนาจตามคำสั่งสำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน ที่ ๒๔๙๓/๒๕๖๖ ลงวันที่ ๑๕ พฤศจิกายน ๒๕๖๖ และคำสั่งแก้ไขเพิ่มเติม ที่ ๒๑๕/๒๕๖๗ ลงวันที่ ๒๖ มกราคม ๒๕๖๗ ซึ่งต่อไปในข้อตกลงนี้เรียกว่า <b>“ผู้ว่าจ้าง”</b> ฝ่ายหนึ่ง กับ <b>${data.vendor_info?.name || '..........................................................'}</b> เลขประจำตัวประชาชน <b>${data.vendor_info?.tax_id || '..........................................................'}</b> อยู่บ้านเลขที่ ${data.vendor_info?.address || '..........................................................'} โทรศัพท์ ${data.vendor_info?.phone || '......................'} ซึ่งต่อไปในข้อตกลงนี้เรียกว่า <b>“ผู้รับจ้าง”</b> อีกฝ่ายหนึ่ง
+        </div>
+
+        <div class="content-p">
+          คู่ข้อตกลงทั้งสองฝ่ายได้ตกลงทำข้อตกลงจ้างเหมาบริการ โดยมีข้อความดังต่อไปนี้:
+        </div>
+
+        <div class="content-p">
+          <b>ข้อ ๑. ข้อตกลงจ้างและระยะเวลาการจ้าง</b><br/>
+          ผู้ว่าจ้างตกลงจ้างเหมา และผู้รับจ้างตกลงรับจ้างเหมาทำงานบริการ รายการ <b>${data.title}</b> ณ ${data.school_name} มีกำหนดระยะเวลาจ้างเหมาบริการทำงานทั้งสิ้น ๑๒ งวด (๑๒ เดือน) โดยผู้รับจ้างรับรองว่ามีคุณสมบัติครบถ้วนตามหลักเกณฑ์ของทางราชการ และไม่เป็นผู้ทิ้งงานของรัฐ
+        </div>
+
+        <div class="content-p">
+          <b>ข้อ ๒. ขอบเขตของงานจ้างเหมาบริการ (TOR)</b><br/>
+          ผู้รับจ้างตกลงจะปฏิบัติงานตามขอบเขตภารกิจและหน้าที่ความรับผิดชอบอย่างเคร่งครัด ดังนี้:
+          <div style="margin-left: 20px; margin-top: 5px; font-size: 14pt; line-height: 1.5; white-space: pre-wrap; background-color: #fafafa; border-left: 3px solid #666; padding: 6px 12px;">${data.custom_clauses || `๑. ปฏิบัติงานด้านธุรการ สารบรรณ ลงทะเบียนรับ-ส่ง และจัดเก็บเอกสารหนังสือราชการ
+๒. งานจัดเก็บและรายงานข้อมูลสารสนเทศทางการศึกษา (DMC, CCT ปัจจัยพื้นฐานนักเรียนยากจน)
+๓. งานพัสดุ ทะเบียนคุม และการดูแลรักษาทรัพย์สินของสถานศึกษา
+๔. งานสนับสนุนการบริหารจัดการศึกษาและภารกิจอื่นๆ ตามที่ผู้ว่าจ้างมอบหมาย`}</div>
+        </div>
+
+        <div class="content-p">
+          <b>ข้อ ๓. ค่าจ้างเหมาบริการและการจ่ายเงิน</b><br/>
+          ผู้ว่าจ้างตกลงจ่ายค่าจ้างเหมาบริการให้แก่ผู้รับจ้างเป็นรายเดือน เดือนละ <b>${monthlyAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท (-${monthlyText}-)</b> จำนวน ๑๒ เดือน รวมเป็นเงินทั้งสิ้น <b>${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท (-${totalText}-)</b> ซึ่งได้รวมค่าภาษีอากรและค่าใช้จ่ายทั้งปวงไว้แล้ว โดยผู้รับจ้างต้องส่งมอบงานภายใน ๕ วันทำการของเดือนถัดไป เมื่อคณะกรรมการตรวจรับพัสดุได้ตรวจรับผลงานถูกต้องเรียบร้อยแล้ว จึงจะดำเนินการเบิกจ่ายเงินให้ต่อไป
+        </div>
+
+        <div class="content-p">
+          <b>ข้อ ๔. การบอกเลิกข้อตกลง</b><br/>
+          หากผู้รับจ้างไม่ปฏิบัติงานตามขอบเขตที่กำหนด ละทิ้งหน้าที่ หรือก่อให้เกิดความเสียหายแก่ทางราชการ ผู้ว่าจ้างมีสิทธิบอกเลิกข้อตกลงได้ทันทีโดยไม่ต้องจ่ายค่าชดเชยใดๆ ทั้งสิ้น
+        </div>
+
+        <div style="margin-top: 25px; line-height: 1.7;">
+          <table style="width: 100%; border: none;">
+            <tr>
+              <td style="width: 50%; text-align: center; vertical-align: top;">
+                ${data.director_signature_url ? `<img src="${data.director_signature_url}" class="sig-img" />` : ''}
+                (ลงชื่อ)...................................................... ผู้ว่าจ้าง<br/>
+                ( ${data.director_name} )<br/>
+                ${data.director_position}
+              </td>
+              <td style="width: 50%; text-align: center; vertical-align: top;">
+                <br/>
+                (ลงชื่อ)...................................................... ผู้รับจ้าง<br/>
+                ( ${data.vendor_info?.name || '..........................................................'} )<br/>
+                ผู้รับจ้างเหมาบริการ
+              </td>
+            </tr>
+            <tr>
+              <td style="width: 50%; text-align: center; vertical-align: top; padding-top: 20px;">
+                (ลงชื่อ)...................................................... พยาน<br/>
+                ( ${data.head_officer_name} )<br/>
+                หัวหน้าเจ้าหน้าที่
+              </td>
+              <td style="width: 50%; text-align: center; vertical-align: top; padding-top: 20px;">
+                (ลงชื่อ)...................................................... พยาน<br/>
+                ( ${data.officer_name} )<br/>
+                เจ้าหน้าที่พัสดุ
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * 4.2 ใบตรวจรับงานจ้างเหมาบริการรายเดือน ว.877 (สำหรับเบิกเงินรายเดือน)
+   */
+  static renderW877MonthlyInspection(data: ProcurementDocData): string {
+    const totalAmount = data.final_amount || data.estimated_amount;
+    const monthlyAmount = totalAmount > 0 ? Math.round(totalAmount / 12) : 0;
+    const monthlyText = thaiBahtText(monthlyAmount);
+
+    return `
+      <div class="page">
+        <div style="text-align: center; margin-bottom: 10px;">
+          <img src="${garuda3cm}" class="garuda-30" />
+          <div style="font-size: 20pt; font-weight: bold; margin-top: 5px;">ใบตรวจรับงานจ้างเหมาบริการรายเดือน</div>
+          <div style="font-size: 13pt; color: #444;">ตามข้อตกลงจ้างเหมาบริการ ว.877 เลขที่ ${data.po_number || '.........'}</div>
+        </div>
+
+        <div style="text-align: right; margin-bottom: 12px; font-size: 14pt;">
+          เขียนที่ ${data.school_name}<br/>
+          วันที่ ${formatThaiDate(data.inspection_date || new Date().toISOString().split('T')[0])}
+        </div>
+
+        <div class="content-p">
+          ตามที่ <b>${data.school_name}</b> ได้ทำข้อตกลงจ้างเหมาบริการ รายการ <b>${data.title}</b> กับ <b>${data.vendor_info?.name || 'ผู้รับจ้าง'}</b> ตามข้อตกลงจ้างเลขที่ ${data.po_number || '...........'} ลงวันที่ ${formatThaiDate(data.po_date || data.request_date)} นั้น
+        </div>
+
+        <div class="content-p">
+          บัดนี้ ผู้รับจ้างได้ส่งมอบงานจ้างเหมาบริการประจำงวดเดือน เป็นที่เรียบร้อยแล้ว คณะกรรมการตรวจรับพัสดุได้ทำการตรวจสอบผลการปฏิบัติงานแล้ว ปรากฏผลดังนี้:
+        </div>
+
+        <div style="margin-left: 1.5cm; margin-top: 8px; line-height: 1.6; font-size: 15pt;">
+          ๑. ผู้รับจ้างได้ปฏิบัติหน้าที่และส่งมอบผลงานตามขอบเขตของงาน (TOR) ครบถ้วนถูกต้อง<br/>
+          ๒. ผลการปฏิบัติงานมีคุณภาพเรียบร้อย เป็นไปตามมาตรฐานและข้อตกลงจ้างทุกประการ<br/>
+          ๓. ได้ส่งมอบงานภายในระยะเวลาที่กำหนด ไม่มีค่าปรับแต่อย่างใด<br/>
+          ๔. เห็นควรอนุมัติจ่ายเงินค่าจ้างประจำงวด เป็นจำนวนเงิน <b>${monthlyAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท (-${monthlyText}-)</b>
+        </div>
+
+        <div class="content-p" style="margin-top: 15px;">
+          จึงขอรายงานผลการตรวจรับต่อผู้อำนวยการสถานศึกษาเพื่อโปรดทราบและพิจารณาอนุมัติเบิกจ่ายเงินต่อไป
+        </div>
+
+        <div class="sig-section" style="margin-top: 25px;">
+          <div class="sig-box">
+            ${data.committee_members.map((m, idx) => `
+              <div style="margin-bottom: 12px;">
+                (ลงชื่อ)...................................................... ${m.role}<br/>
+                ( ${m.name} )<br/>
+                ตำแหน่ง ${m.position || 'ครู'}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px dashed #000; padding-top: 12px;">
+          <div style="font-weight: bold; font-size: 15pt;">คำสั่ง / คำอนุมัติของผู้อำนวยการ:</div>
+          <div style="margin-top: 5px; font-size: 15pt;">[ ✓ ] ทราบผลการตรวจรับ และอนุมัติให้เบิกจ่ายเงินค่าจ้างได้</div>
+          <div class="sig-section" style="margin-top: 15px;">
+            <div class="sig-box">
+              ${data.director_signature_url ? `<img src="${data.director_signature_url}" class="sig-img" />` : ''}
+              (ลงชื่อ)......................................................<br/>
+              ( ${data.director_name} )<br/>
+              ผู้อำนวยการ${data.school_name}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
    * สั่งพิมพ์เอกสารไปยังหน้าต่างพิมพ์ใหม่
    */
   static printHtml(htmlContent: string, title: string = 'เอกสารจัดซื้อจัดจ้าง') {
@@ -749,6 +902,13 @@ export class ProcurementDocGenerator {
     if (data.policy_code === 'W119_10K') {
       // ว.119 ไม่เกิน 1 หมื่น พิมพ์บันทึกขอความเห็นชอบ 1 ชุดจบ
       bundleHtml = this.renderW119FastTrackMemo(data);
+    } else if (data.policy_code === 'W877') {
+      // ว.877 จ้างเหมาบริการ 12 เดือน บุคคลธรรมดา (ธุรการโรงเรียน / นักการภารโรง / ครูอัตราจ้าง)
+      bundleHtml += this.renderRequestMemo(data);
+      bundleHtml += this.renderReportClause22(data);
+      bundleHtml += this.renderAppointmentOrder(data);
+      bundleHtml += this.renderW877Agreement(data);
+      bundleHtml += this.renderW877MonthlyInspection(data);
     } else {
       // ว.89 หรือ e-GP ชุดใหญ่ พิมพ์เรียงตามลำดับ 5 ฉบับ
       bundleHtml += this.renderRequestMemo(data);

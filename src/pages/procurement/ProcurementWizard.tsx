@@ -107,6 +107,134 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
     }
   }, [category, estimatedAmount]);
 
+  // ฟังก์ชันเลือกตำแหน่งจ้างเหมาบริการด่วน (สพฐ. / ว.877)
+  const applyServicePreset = (presetKey: string) => {
+    switch (presetKey) {
+      case 'admin_officer_bachelor':
+        setTitle(`จ้างเหมาบริการปฏิบัติงานธุรการโรงเรียน ประจำปีงบประมาณ ${fiscalYear} (ว.877 บุคคลธรรมดา 12 เดือน)`);
+        setItems([
+          {
+            item_name: `จ้างเหมาบริการปฏิบัติงานธุรการและสารบรรณโรงเรียน (เดือนละ 15,000 บาท x 12 เดือน)`,
+            specification: 'วุฒิปริญญาตรี ปฏิบัติงานด้านธุรการ สารบรรณอิเล็กทรอนิกส์ ระบบ DMC/CCT พัสดุ และงานเอกสารตามภารกิจโรงเรียน',
+            quantity: 12,
+            unit: 'งวด',
+            unit_price: 15000,
+            total_price: 180000
+          }
+        ]);
+        setCustomClauses(
+`ขอบเขตของงานจ้างเหมาบริการ (TOR) ตำแหน่ง เจ้าหน้าที่ธุรการโรงเรียน:
+1. งานธุรการ สารบรรณ จัดเก็บเอกสาร หลักฐาน ทะเบียน และหนังสือราชการต่างๆ ทั้งระบบ e-office และการทำลายเอกสาร
+2. งานพัสดุ จัดลงทะเบียน คุมการเบิกจ่าย การจัดเก็บ รักษาดูแลความเป็นระเบียบเรียบร้อยของทรัพย์สินโรงเรียน
+3. งานข้อมูลสารสนเทศทางการศึกษา จัดระบบทะเบียน สำรวจ บันทึก และจัดทำรายงานข้อมูลในระบบ ICT (DMC, CCT ปัจจัยพื้นฐานนักเรียนยากจน, EMIS, B-OBEC)
+4. งานการเงินและบัญชี หรือภารกิจสนับสนุนการจัดการเรียนการสอนตามที่สถานศึกษาได้รับมอบหมาย`
+        );
+        break;
+
+      case 'admin_officer_vocational':
+        setTitle(`จ้างเหมาบริการปฏิบัติงานธุรการโรงเรียน ประจำปีงบประมาณ ${fiscalYear} (ว.877 บุคคลธรรมดา 12 เดือน)`);
+        setItems([
+          {
+            item_name: `จ้างเหมาบริการปฏิบัติงานธุรการและสารบรรณโรงเรียน (เดือนละ 9,000 บาท x 12 เดือน)`,
+            specification: 'วุฒิ ปวช./ปวส. ปฏิบัติงานด้านธุรการ สารบรรณ บันทึกข้อมูล และเอกสารทั่วไป',
+            quantity: 12,
+            unit: 'งวด',
+            unit_price: 9000,
+            total_price: 108000
+          }
+        ]);
+        setCustomClauses(
+`ขอบเขตของงานจ้างเหมาบริการ (TOR) ตำแหน่ง เจ้าหน้าที่ธุรการโรงเรียน:
+1. งานธุรการ สารบรรณ รับ-ส่ง ลงทะเบียน และจัดเก็บเอกสารหนังสือราชการ
+2. บันทึกและพิมพ์งานเอกสารราชการต่างๆ ของโรงเรียน
+3. จัดส่งและรับข้อมูลในระบบสารสนเทศทางการศึกษา
+4. ปฏิบัติงานอื่นๆ ตามที่ผู้ว่าจ้างมอบหมาย`
+        );
+        break;
+
+      case 'janitor':
+        setTitle(`จ้างเหมาบริการนักการภารโรง ประจำปีงบประมาณ ${fiscalYear} (ว.877 บุคคลธรรมดา 12 เดือน)`);
+        setItems([
+          {
+            item_name: `จ้างเหมาบริการทำความสะอาดและดูแลรักษาอาคารสถานที่ (เดือนละ 9,000 บาท x 12 เดือน)`,
+            specification: 'ทำความสะอาดอาคารเรียน บริเวณโรงเรียน ห้องน้ำ ดูแลความปลอดภัยและทรัพย์สิน',
+            quantity: 12,
+            unit: 'งวด',
+            unit_price: 9000,
+            total_price: 108000
+          }
+        ]);
+        setCustomClauses(
+`ขอบเขตของงานจ้างเหมาบริการ (TOR) ตำแหน่ง นักการภารโรง:
+1. ทำความสะอาดอาคารเรียน อาคารประกอบ ห้องน้ำ ห้องสุขา และบริเวณโดยรอบโรงเรียน
+2. ดูแลรักษาความสะอาด ความเป็นระเบียบเรียบร้อย และความปลอดภัยของทรัพย์สินทางราชการ
+3. ตัดแต่งกิ่งไม้ ดูแลสวนหย่อม และสภาพแวดล้อมภายในสถานศึกษา
+4. งานซ่อมแซมบำรุงรักษาอาคารสถานที่และครุภัณฑ์เบื้องต้น`
+        );
+        break;
+
+      case 'special_edu_aide':
+        setTitle(`จ้างเหมาบริการปฏิบัติงานพี่เลี้ยงเด็กพิการเรียนรวม ประจำปีงบประมาณ ${fiscalYear} (ว.877 บุคคลธรรมดา 12 เดือน)`);
+        setItems([
+          {
+            item_name: `จ้างเหมาบริการปฏิบัติงานดูแลช่วยเหลือเด็กพิการเรียนรวม (เดือนละ 9,000 บาท x 12 เดือน)`,
+            specification: 'ดูแลช่วยเหลือนักเรียนที่มีความต้องการจำเป็นพิเศษและกิจกรรมการเรียนรวม',
+            quantity: 12,
+            unit: 'งวด',
+            unit_price: 9000,
+            total_price: 108000
+          }
+        ]);
+        setCustomClauses(
+`ขอบเขตของงานจ้างเหมาบริการ (TOR) ตำแหน่ง พี่เลี้ยงเด็กพิการเรียนรวม:
+1. ช่วยเหลือดูแลนักเรียนที่มีความต้องการจำเป็นพิเศษในการทำกิจวัตรประจำวัน การเดินทาง และการใช้ชีวิตในโรงเรียน
+2. ช่วยเหลือครูผู้สอนในการจัดกิจกรรมการเรียนรู้และการฝึกทักษะพัฒนาการนักเรียน
+3. ดูแลความปลอดภัยของนักเรียนที่มีความบกพร่องตลอดระยะเวลาที่อยู่ภายในสถานศึกษา`
+        );
+        break;
+
+      case 'school_driver':
+        setTitle(`จ้างเหมาบริการพนักงานขับรถรับ-ส่งนักเรียน ประจำปีงบประมาณ ${fiscalYear} (ว.877 บุคคลธรรมดา 12 เดือน)`);
+        setItems([
+          {
+            item_name: `จ้างเหมาบริการขับรถรับ-ส่งนักเรียนและบำรุงรักษายานพาหนะ (เดือนละ 9,000 บาท x 12 เดือน)`,
+            specification: 'ขับรถรับส่งนักเรียนตามเส้นทางที่กำหนด ตรวจเช็คสภาพความพร้อมของยานพาหนะ',
+            quantity: 12,
+            unit: 'งวด',
+            unit_price: 9000,
+            total_price: 108000
+          }
+        ]);
+        setCustomClauses(
+`ขอบเขตของงานจ้างเหมาบริการ (TOR) ตำแหน่ง พนักงานขับรถรับ-ส่งนักเรียน:
+1. ขับรถรับ-ส่งนักเรียนตามเส้นทางและเวลาที่สถานศึกษากำหนดด้วยความปลอดภัยสูงสุด
+2. ตรวจสอบสภาพความพร้อมใช้งานของยานพาหนะ เครื่องยนต์ น้ำมัน ยาง และระบบเบรกก่อนและหลังใช้งานทุกครั้ง
+3. ดูแลรักษาความสะอาดของยานพาหนะทั้งภายในและภายนอก`
+        );
+        break;
+
+      case 'teacher_contract':
+        setTitle(`จ้างเหมาบริการปฏิบัติงานสอน (ครูอัตราจ้าง) ประจำปีงบประมาณ ${fiscalYear} (ว.877 บุคคลธรรมดา 12 เดือน)`);
+        setItems([
+          {
+            item_name: `จ้างเหมาบริการปฏิบัติการสอนและพัฒนาผู้เรียน (เดือนละ 15,000 บาท x 12 เดือน)`,
+            specification: 'มีใบอนุญาตประกอบวิชาชีพครู ปฏิบัติการสอนตามกลุ่มสาระการเรียนรู้ที่กำหนด',
+            quantity: 12,
+            unit: 'งวด',
+            unit_price: 15000,
+            total_price: 180000
+          }
+        ]);
+        setCustomClauses(
+`ขอบเขตของงานจ้างเหมาบริการ (TOR) ตำแหน่ง ปฏิบัติการสอน:
+1. จัดทำแผนการจัดการเรียนรู้ และปฏิบัติการสอนตามหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน
+2. วัดและประเมินผลการเรียนรู้ของผู้เรียน บันทึกคะแนนและรายงานผลการพัฒนาผู้เรียน
+3. ปฏิบัติหน้าที่ครูเวรประจำวัน และร่วมกิจกรรมพัฒนาผู้เรียนตามที่สถานศึกษากำหนด`
+        );
+        break;
+    }
+  };
+
   // จัดการรายการพัสดุ
   const addItem = () => {
     setItems([...items, { item_name: '', specification: '', quantity: 1, unit: 'รายการ', unit_price: 0, total_price: 0 }]);
@@ -353,6 +481,104 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
                   </select>
                 </div>
               </div>
+
+              {/* Quick Presets for Service Contracts (ว.877) */}
+              {category === 'service_12m' && (
+                <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <div className="flex items-center gap-2 text-purple-900 font-bold text-sm">
+                      <Sparkles size={18} className="text-purple-600" />
+                      <span>เลือกแม่แบบตำแหน่งจ้างเหมาบริการ สพฐ. (ว.877)</span>
+                    </div>
+                    <span className="text-[11px] text-purple-700 bg-purple-100/80 border border-purple-200 px-2.5 py-0.5 rounded-full font-medium">
+                      คลิกเดียวใส่ชื่อเรื่อง • 12 งวด • วงเงิน • TOR อัตโนมัติ
+                    </span>
+                  </div>
+                  <p className="text-xs text-purple-950/70">
+                    เลือกตำแหน่งที่ต้องการจ้าง ระบบจะเติมข้อความสัญญาและรายละเอียดขอบเขตงาน (TOR) ตามมาตรฐาน สพฐ. และ สพป.พัทลุง เขต 2 ให้อัตโนมัติ:
+                  </p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => applyServicePreset('admin_officer_bachelor')}
+                      className="p-3.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-100/60 text-left transition-all cursor-pointer shadow-sm hover:border-purple-400 group"
+                    >
+                      <div className="font-bold text-xs text-purple-900 group-hover:text-purple-700 flex items-center justify-between">
+                        <span>💼 ธุรการโรงเรียน (ป.ตรี)</span>
+                        <span className="text-[10px] bg-purple-100 text-purple-800 font-black px-1.5 py-0.5 rounded">15,000 บ./ด.</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 font-semibold mt-1">12 งวด รวม 180,000 บาท</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">งานสารบรรณ, DMC, CCT, จัดซื้อพัสดุ</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyServicePreset('admin_officer_vocational')}
+                      className="p-3.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-100/60 text-left transition-all cursor-pointer shadow-sm hover:border-purple-400 group"
+                    >
+                      <div className="font-bold text-xs text-purple-900 group-hover:text-purple-700 flex items-center justify-between">
+                        <span>💼 ธุรการโรงเรียน (ปวช./ปวส.)</span>
+                        <span className="text-[10px] bg-purple-100 text-purple-800 font-black px-1.5 py-0.5 rounded">9,000 บ./ด.</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 font-semibold mt-1">12 งวด รวม 108,000 บาท</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">งานเอกสาร, ทะเบียนรับ-ส่ง, พิมพ์หนังสือ</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyServicePreset('janitor')}
+                      className="p-3.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-100/60 text-left transition-all cursor-pointer shadow-sm hover:border-purple-400 group"
+                    >
+                      <div className="font-bold text-xs text-purple-900 group-hover:text-purple-700 flex items-center justify-between">
+                        <span>🧹 นักการภารโรง</span>
+                        <span className="text-[10px] bg-purple-100 text-purple-800 font-black px-1.5 py-0.5 rounded">9,000 บ./ด.</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 font-semibold mt-1">12 งวด รวม 108,000 บาท</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">ทำความสะอาด ดูแลอาคารสถานที่ ทรัพย์สิน</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyServicePreset('special_edu_aide')}
+                      className="p-3.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-100/60 text-left transition-all cursor-pointer shadow-sm hover:border-purple-400 group"
+                    >
+                      <div className="font-bold text-xs text-purple-900 group-hover:text-purple-700 flex items-center justify-between">
+                        <span>♿ พี่เลี้ยงเด็กพิการเรียนรวม</span>
+                        <span className="text-[10px] bg-purple-100 text-purple-800 font-black px-1.5 py-0.5 rounded">9,000 บ./ด.</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 font-semibold mt-1">12 งวด รวม 108,000 บาท</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">ดูแลช่วยเหลือเด็กพิเศษและพัฒนาการ</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyServicePreset('school_driver')}
+                      className="p-3.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-100/60 text-left transition-all cursor-pointer shadow-sm hover:border-purple-400 group"
+                    >
+                      <div className="font-bold text-xs text-purple-900 group-hover:text-purple-700 flex items-center justify-between">
+                        <span>🚐 พนักงานขับรถรับ-ส่ง</span>
+                        <span className="text-[10px] bg-purple-100 text-purple-800 font-black px-1.5 py-0.5 rounded">9,000 บ./ด.</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 font-semibold mt-1">12 งวด รวม 108,000 บาท</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">ขับรถรับส่งนักเรียน ตรวจเช็คบำรุงรักษา</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => applyServicePreset('teacher_contract')}
+                      className="p-3.5 rounded-xl border border-purple-200 bg-white hover:bg-purple-100/60 text-left transition-all cursor-pointer shadow-sm hover:border-purple-400 group"
+                    >
+                      <div className="font-bold text-xs text-purple-900 group-hover:text-purple-700 flex items-center justify-between">
+                        <span>🎓 ครูอัตราจ้าง</span>
+                        <span className="text-[10px] bg-purple-100 text-purple-800 font-black px-1.5 py-0.5 rounded">15,000 บ./ด.</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 font-semibold mt-1">12 งวด รวม 180,000 บาท</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">ปฏิบัติการสอน วัดผล พัฒนาผู้เรียน</div>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* AI OCR Scan Section */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5">
