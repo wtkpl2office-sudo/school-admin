@@ -22,9 +22,12 @@ import {
   Trash2,
   Edit3,
   X,
-  Package
+  Package,
+  Send,
+  Bell
 } from 'lucide-react';
 import { ProcurementNumberingService } from '../../services/procurementNumberingService';
+import { ProcurementNotificationService } from '../../services/procurementNotificationService';
 import { thaiBahtText } from '../../services/procurementDocGenerator';
 
 interface CaseDetailProps {
@@ -223,9 +226,34 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
 
       await onUpdateCase(payload);
       setActiveGateTab(nextGate);
+
+      // Non-blocking Concurrent Notification ตาม Rule D
+      const mergedCase = { ...caseData, ...payload };
+      if (nextGate === 2) {
+        Promise.allSettled([ProcurementNotificationService.notifyHeadOfficerProposal(mergedCase)]).catch(() => {});
+      } else if (nextGate === 3) {
+        Promise.allSettled([ProcurementNotificationService.notifyStakeholdersApproved(mergedCase)]).catch(() => {});
+      } else if (nextGate === 4) {
+        Promise.allSettled([ProcurementNotificationService.notifyInspectorsDeliveryArrived(mergedCase)]).catch(() => {});
+      }
     } catch (err: any) {
       console.error(err);
       alert(`เกิดข้อผิดพลาด: ${err.message}`);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  // Handler: ส่งบรอดแคสต์แจ้งเตือนผู้เกี่ยวข้องทาง Telegram (Manual Trigger)
+  const handleBroadcastTelegram = async () => {
+    const note = prompt('ระบุข้อความหรือหมายเหตุที่ต้องการแจ้งเตือนถึงผู้เกี่ยวข้อง (หรือกดตกลงเพื่อส่งสถานะปัจจุบัน):', '');
+    if (note === null) return;
+    setUpdating(true);
+    try {
+      const res = await ProcurementNotificationService.notifyAllStakeholdersCustom(caseData, note);
+      alert(res.message);
+    } catch (e: any) {
+      alert(`ไม่สามารถส่งข้อความได้: ${e.message}`);
     } finally {
       setUpdating(false);
     }
@@ -332,6 +360,16 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
               <span>ลบสำนวนนี้</span>
             </button>
           )}
+
+          <button
+            onClick={handleBroadcastTelegram}
+            disabled={updating}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 font-bold text-xs shadow-xs transition-all cursor-pointer"
+            title="ส่งแจ้งเตือนสถานะปัจจุบันเข้า Telegram กลุ่ม/บุคคล"
+          >
+            <Bell size={16} />
+            <span>📢 แจ้งเตือน Telegram</span>
+          </button>
 
           <button
             onClick={() => onPrintBundle(includeSignatures)}
@@ -512,13 +550,33 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                 </div>
 
                 {caseData.current_gate === 2 && (
-                  <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
+                  <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center gap-3">
                     <button
                       onClick={() => handleAdvanceGate(3, { pr_approval_date: new Date().toISOString().split('T')[0] })}
                       disabled={updating}
                       className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md cursor-pointer transition-all"
                     >
                       หัวหน้าเจ้าหน้าที่เห็นชอบ ➔ เสนอ ผอ. อนุมัติ & ออก PO (Gate 3)
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        setUpdating(true);
+                        try {
+                          const res = await ProcurementNotificationService.notifyHeadOfficerProposal(caseData);
+                          alert(res.message);
+                        } catch (e: any) {
+                          alert(`ไม่สามารถส่งข้อความได้: ${e.message}`);
+                        } finally {
+                          setUpdating(false);
+                        }
+                      }}
+                      disabled={updating}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs shadow-xs cursor-pointer transition-all"
+                      title="ส่งรายงานขอซื้อขอจ้างให้หัวหน้าเจ้าหน้าที่พิจารณาผ่าน Telegram"
+                    >
+                      <Send size={14} />
+                      <span>📢 เสนอหัวหน้าเจ้าหน้าที่ทาง Telegram</span>
                     </button>
                   </div>
                 )}
@@ -575,7 +633,7 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                 </div>
 
                 {caseData.current_gate === 3 && (
-                  <div className="pt-4 border-t border-slate-100">
+                  <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center gap-3">
                     <button
                       onClick={() => handleAdvanceGate(4)}
                       disabled={updating}
@@ -584,6 +642,26 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                       {caseData.policy_code === 'W877' 
                         ? 'ส่งมอบงานจ้างแล้ว ➔ ส่งต่อผู้ตรวจรับพัสดุ (Gate 4)' 
                         : 'ผู้ขายส่งมอบพัสดุแล้ว ➔ ส่งต่อผู้ตรวจรับพัสดุ (Gate 4)'}
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        setUpdating(true);
+                        try {
+                          await ProcurementNotificationService.notifyStakeholdersApproved(caseData);
+                          alert('ส่งแจ้งเตือนคำสั่งแต่งตั้งและใบสั่งซื้อทาง Telegram เรียบร้อยแล้วค่ะ');
+                        } catch (e: any) {
+                          alert(`ไม่สามารถส่งข้อความได้: ${e.message}`);
+                        } finally {
+                          setUpdating(false);
+                        }
+                      }}
+                      disabled={updating}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs shadow-xs cursor-pointer transition-all"
+                      title="ส่งแจ้งเตือนคำสั่งแต่งตั้งให้กรรมการตรวจรับและผู้ขอซื้อทาง Telegram"
+                    >
+                      <Bell size={14} />
+                      <span>📢 แจ้งเตือนคำสั่ง & PO ทาง Telegram</span>
                     </button>
                   </div>
                 )}
@@ -642,13 +720,33 @@ export const ProcurementCaseDetail: React.FC<CaseDetailProps> = ({
                 </div>
 
                 {caseData.current_gate === 4 && (
-                  <div className="pt-4 border-t border-slate-100">
+                  <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center gap-3">
                     <button
                       onClick={() => handleAdvanceGate(5)}
                       disabled={updating}
                       className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer transition-all"
                     >
                       ผู้ตรวจรับพัสดุลงนามตรวจรับเรียบร้อย ➔ ส่งต่อเจ้าหน้าที่การเงินเบิกจ่าย (Gate 5)
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        setUpdating(true);
+                        try {
+                          const res = await ProcurementNotificationService.notifyInspectorsDeliveryArrived(caseData);
+                          alert(res.message);
+                        } catch (e: any) {
+                          alert(`ไม่สามารถส่งข้อความได้: ${e.message}`);
+                        } finally {
+                          setUpdating(false);
+                        }
+                      }}
+                      disabled={updating}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs shadow-xs cursor-pointer transition-all"
+                      title="ส่งแจ้งเตือนให้คณะกรรมการตรวจรับเข้าตรวจรับพัสดุทาง Telegram"
+                    >
+                      <Package size={14} />
+                      <span>📦 แจ้งเตือนกรรมการเข้าตรวจรับทาง Telegram</span>
                     </button>
                   </div>
                 )}

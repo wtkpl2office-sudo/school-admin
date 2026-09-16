@@ -1515,6 +1515,299 @@ function getUpdatedMarkupForStatus(status: string, assignmentId: string) {
   return { inline_keyboard: [] };
 }
 
+/**
+ * จัดการคำสั่ง Inline Callback ของระบบจัดซื้อจัดจ้างอิเล็กทรอนิกส์ (EPCM Interactive Flow)
+ * - prc_hok: หัวหน้าเจ้าหน้าที่เห็นชอบรายงานขอซื้อขอจ้าง (ข้อ 22) -> ส่งเสนอ ผอ. อัตโนมัติ
+ * - prc_dok: ผู้อำนวยการอนุมัติจัดซื้อจัดจ้าง -> เลื่อนเป็น Gate 3, รันเลขคำสั่ง & PO, แจ้งเตือนผู้เกี่ยวข้อง
+ * - prc_rej: ส่งกลับแก้ไข / ไม่อนุมัติ
+ */
+async function handleProcurementCallback(
+  action: string,
+  params: URLSearchParams,
+  callbackQuery: any,
+  callbackChatId: number,
+  profileLinked: any,
+  botToken: string,
+  supabase: any,
+  settings: any
+) {
+  const caseId = params.get('id');
+  if (!caseId) {
+    await answerCallbackQuery(botToken, callbackQuery.id, '❌ ไม่พบรหัสสำนวนจัดซื้อจัดจ้างค่ะ', true);
+    return;
+  }
+
+  // 1. ดึงข้อมูลสำนวนจากตาราง procurement_cases
+  const { data: caseData, error: caseErr } = await supabase
+    .from('procurement_cases')
+    .select('*')
+    .eq('id', caseId)
+    .maybeSingle();
+
+  if (caseErr || !caseData) {
+    await answerCallbackQuery(botToken, callbackQuery.id, '❌ ไม่พบข้อมูลสำนวนนี้ในระบบค่ะ', true);
+    return;
+  }
+
+  const amount = Number(caseData.final_amount) || Number(caseData.estimated_amount) || 0;
+  const amountFmt = amount.toLocaleString('th-TH', { minimumFractionDigits: 2 });
+  const rawGroupId = settings?.telegram_group_id || '';
+  const proposalChatId = rawGroupId.split('|')[1]?.trim() || rawGroupId.split('|')[0]?.trim() || callbackChatId;
+  const centralChatId = rawGroupId.split('|')[0]?.trim() || callbackChatId;
+
+  // 2. กรณี: หัวหน้าเจ้าหน้าที่เห็นชอบเสนอ ผอ. (prc_hok)
+  if (action === 'prc_hok') {
+    await answerCallbackQuery(botToken, callbackQuery.id, '✅ บันทึกความเห็นชอบของหัวหน้าเจ้าหน้าที่แล้วค่ะ 🌸');
+
+    const existingSigs = caseData.approval_signatures || {};
+    existingSigs.head_officer = {
+      signed: true,
+      at: new Date().toISOString(),
+      by: profileLinked.display_name || 'หัวหน้าเจ้าหน้าที่พัสดุ'
+    };
+
+    // อัปเดตฐานข้อมูล (DB-First)
+    await supabase
+      .from('procurement_cases')
+      .update({
+        status: 'pending_approval',
+        approval_signatures: existingSigs,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', caseId);
+
+    // แก้ไขปุ่มของข้อความเดิมบน Telegram
+    await editTelegramMessageMarkup(botToken, callbackChatId, callbackQuery.message.message_id, {
+      inline_keyboard: [[{ text: `✅ เห็นชอบแล้ว (${profileLinked.display_name || 'หัวหน้าเจ้าหน้าที่'})`, callback_data: 'action=noop' }]]
+    });
+
+    // ส่งข้อความการ์ดเสนอ ผอ. อนุมัติต่อไปยังห้องเสนอหนังสือ
+    let dirMsg = `📌 <b>[เสนอ ผอ. อนุมัติจัดซื้อจัดจ้าง]</b>\n`;
+    dirMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    dirMsg += `📂 <b>เลขสำนวน:</b> <code>${escapeHtml(caseData.pcid)}</code>\n`;
+    dirMsg += `📝 <b>เรื่อง:</b> ${escapeHtml(caseData.title)}\n`;
+    dirMsg += `💰 <b>วงเงินขออนุมัติ:</b> ฿${amountFmt} บาท\n`;
+    dirMsg += `🏪 <b>คู่สัญญา/ผู้ขาย:</b> ${escapeHtml(caseData.vendor_info?.name || 'ตามใบเสนอราคา')}\n`;
+    dirMsg += `✅ <b>หัวหน้าเจ้าหน้าที่:</b> ${escapeHtml(profileLinked.display_name || 'หัวหน้าเจ้าหน้าที่')} (เห็นชอบเสนอ ผอ. แล้ว)\n`;
+    dirMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    dirMsg += `<i>เรียน ผู้อำนวยการโรงเรียน เพื่อโปรดพิจารณาอนุมัติการจัดซื้อจัดจ้างและลงนามคำสั่งแต่งตั้ง/สัญญาค่ะ 🌸</i>`;
+
+    const dirMarkup = {
+      inline_keyboard: [
+        [
+          { text: '✍️ อนุมัติจัดซื้อ/จัดจ้าง', callback_data: `action=prc_dok&id=${caseId}` },
+          { text: '❌ ไม่อนุมัติ', callback_data: `action=prc_rej&id=${caseId}` }
+        ]
+      ]
+    };
+
+    const targetProposalId = parseInt(proposalChatId, 10);
+    if (!isNaN(targetProposalId)) {
+      await sendTelegramMessage(botToken, targetProposalId, dirMsg, dirMarkup);
+    } else {
+      await sendTelegramMessage(botToken, callbackChatId, dirMsg, dirMarkup);
+    }
+    return;
+  }
+
+  // 3. กรณี: ผู้อำนวยการอนุมัติจัดซื้อจัดจ้าง (prc_dok)
+  if (action === 'prc_dok') {
+    if (profileLinked.role !== 'director' && profileLinked.role !== 'admin') {
+      await answerCallbackQuery(botToken, callbackQuery.id, '❌ ขออภัยค่ะ สิทธิ์การอนุมัติต้องเป็นผู้อำนวยการโรงเรียนเท่านั้นค่ะ 🌸', true);
+      return;
+    }
+
+    await answerCallbackQuery(botToken, callbackQuery.id, '🎉 ผู้อำนวยการอนุมัติจัดซื้อจัดจ้างเรียบร้อยแล้วค่ะ 🌸');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const fiscalYear = caseData.fiscal_year || '2569';
+
+    // ตรวจสอบและออกเลขคำสั่งแต่งตั้ง (ถ้ายังไม่มี)
+    let orderNum = caseData.order_number;
+    let appointmentOrderId = caseData.appointment_order_id;
+    if (!orderNum) {
+      try {
+        const { data: latestOrder } = await supabase
+          .from('orders')
+          .select('id, order_number, sequence_number')
+          .eq('doc_year', parseInt(fiscalYear, 10))
+          .order('sequence_number', { ascending: false })
+          .limit(1);
+
+        const nextSeq = (latestOrder?.[0]?.sequence_number || 0) + 1;
+        orderNum = `คำสั่งที่ ${nextSeq}/${fiscalYear}`;
+
+        const { data: insertedOrder } = await supabase
+          .from('orders')
+          .insert({
+            order_number: orderNum,
+            sequence_number: nextSeq,
+            doc_year: parseInt(fiscalYear, 10),
+            title: `แต่งตั้งคณะกรรมการตรวจรับพัสดุ: ${caseData.title}`,
+            doc_date: todayStr,
+            status: 'approved'
+          })
+          .select('id')
+          .maybeSingle();
+
+        if (insertedOrder?.id) {
+          appointmentOrderId = insertedOrder.id;
+        }
+      } catch (numErr) {
+        console.error('[PROCUREMENT WEBHOOK] Auto reserve order error:', numErr);
+        orderNum = `คำสั่งแต่งตั้ง (ออกในระบบ)`;
+      }
+    }
+
+    // ตรวจสอบและออกเลข PO (ถ้ายังไม่มี)
+    let poNum = caseData.po_number;
+    if (!poNum) {
+      try {
+        const { data: latestPO } = await supabase
+          .from('procurement_cases')
+          .select('po_number')
+          .eq('fiscal_year', fiscalYear)
+          .not('po_number', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        let nextSeq = 1;
+        if (latestPO && latestPO.length > 0 && latestPO[0].po_number) {
+          const parts = latestPO[0].po_number.split('/');
+          const lastNum = parseInt(parts[0].replace(/\D/g, ''), 10);
+          if (!isNaN(lastNum)) nextSeq = lastNum + 1;
+        }
+        poNum = `PO-${nextSeq}/${fiscalYear}`;
+      } catch {
+        poNum = `PO-1/${fiscalYear}`;
+      }
+    }
+
+    const existingSigs = caseData.approval_signatures || {};
+    existingSigs.director = {
+      signed: true,
+      at: new Date().toISOString(),
+      by: profileLinked.display_name || 'ผู้อำนวยการโรงเรียน'
+    };
+
+    // อัปเดตฐานข้อมูลเป็น Gate 3: ordered (DB-First)
+    await supabase
+      .from('procurement_cases')
+      .update({
+        current_gate: 3,
+        status: 'ordered',
+        pr_approval_date: todayStr,
+        po_date: todayStr,
+        order_appointment_date: todayStr,
+        order_number: orderNum,
+        po_number: poNum,
+        appointment_order_id: appointmentOrderId,
+        approval_signatures: existingSigs,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', caseId);
+
+    // แก้ไขปุ่มของข้อความเดิมบน Telegram
+    await editTelegramMessageMarkup(botToken, callbackChatId, callbackQuery.message.message_id, {
+      inline_keyboard: [[{ text: `🔒 ผู้อำนวยการอนุมัติแล้ว (${profileLinked.display_name || 'ผอ.'})`, callback_data: 'action=noop' }]]
+    });
+
+    // ส่งข้อความยืนยันผลในแชท ผอ.
+    let confirmMsg = `🎉 <b>[อนุมัติเรียบร้อย] สำนวนจัดซื้อจัดจ้าง</b>\n`;
+    confirmMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    confirmMsg += `📂 <b>สำนวน:</b> <code>${escapeHtml(caseData.pcid)}</code>\n`;
+    confirmMsg += `📝 <b>เรื่อง:</b> ${escapeHtml(caseData.title)}\n`;
+    confirmMsg += `💰 <b>วงเงิน:</b> ฿${amountFmt} บาท\n`;
+    confirmMsg += `📋 <b>เลขที่คำสั่งแต่งตั้ง:</b> <code>${escapeHtml(orderNum)}</code>\n`;
+    confirmMsg += `🧾 <b>เลขที่ PO:</b> <code>${escapeHtml(poNum)}</code>\n`;
+    confirmMsg += `✍️ <b>อนุมัติโดย:</b> ${escapeHtml(profileLinked.display_name || 'ผู้อำนวยการ')}\n`;
+    confirmMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    confirmMsg += `<i>ระบบได้บันทึกการอนุมัติและเลื่อนสถานะไปยัง ขั้นตอนที่ 3 (ออกใบสั่งซื้อ/สัญญา) แล้วค่ะ 🌸</i>`;
+
+    await sendTelegramMessage(botToken, callbackChatId, confirmMsg);
+
+    // แจ้งเตือนไปยังกลุ่มส่วนกลาง
+    const targetCentralId = parseInt(centralChatId, 10);
+    if (!isNaN(targetCentralId) && targetCentralId !== callbackChatId) {
+      await sendTelegramMessage(botToken, targetCentralId, confirmMsg);
+    }
+
+    // ส่งแจ้งเตือนบุคคลที่เกี่ยวข้อง (Requester & คณะกรรมการตรวจรับ)
+    try {
+      // ผู้ขอซื้อ
+      if (caseData.requester_id) {
+        const { data: reqTeacher } = await supabase.from('teachers').select('telegram_chat_id, email, first_name').eq('id', caseData.requester_id).maybeSingle();
+        let reqChatId = reqTeacher?.telegram_chat_id;
+        if (!reqChatId && reqTeacher?.email) {
+          const { data: prof } = await supabase.from('profiles').select('telegram_chat_id').eq('email', reqTeacher.email).maybeSingle();
+          reqChatId = prof?.telegram_chat_id;
+        }
+        if (reqChatId) {
+          const numChatId = parseInt(reqChatId, 10);
+          if (!isNaN(numChatId)) {
+            let rMsg = `📬 <b>คำขอจัดซื้อจัดจ้างของท่านได้รับอนุมัติแล้วค่ะ</b>\n\n• <b>เรื่อง:</b> ${escapeHtml(caseData.title)}\n• <b>วงเงิน:</b> ฿${amountFmt} บาท\n• <b>เลขที่คำสั่ง:</b> ${escapeHtml(orderNum)}\n\nขณะนี้เจ้าหน้าที่พัสดุกำลังดำเนินการส่งใบสั่งซื้อแก่ร้านค้าค่ะ 🙏`;
+            await sendTelegramMessage(botToken, numChatId, rMsg);
+          }
+        }
+      }
+
+      // คณะกรรมการตรวจรับ
+      const members = Array.isArray(caseData.committee_members) ? caseData.committee_members : [];
+      for (const m of members) {
+        const teacherId = m.teacher_id || m.id;
+        let cChatId = m.telegram_chat_id;
+        if (!cChatId && teacherId) {
+          const { data: t } = await supabase.from('teachers').select('telegram_chat_id, email').eq('id', teacherId).maybeSingle();
+          cChatId = t?.telegram_chat_id;
+          if (!cChatId && t?.email) {
+            const { data: p } = await supabase.from('profiles').select('telegram_chat_id').eq('email', t.email).maybeSingle();
+            cChatId = p?.telegram_chat_id;
+          }
+        }
+        if (cChatId) {
+          const numChatId = parseInt(cChatId, 10);
+          if (!isNaN(numChatId)) {
+            let cMsg = `📋 <b>แจ้งคำสั่งแต่งตั้งกรรมการตรวจรับพัสดุ (เฉพาะบุคคล)</b>\n━━━━━━━━━━━━━━━━━━━━\nท่านได้รับการแต่งตั้งตาม <b>${escapeHtml(orderNum)}</b>\nให้เป็นผู้ตรวจรับพัสดุสำหรับงาน:\n• <b>เรื่อง:</b> ${escapeHtml(caseData.title)}\n• <b>วงเงิน:</b> ฿${amountFmt} บาท\n\n<i>เมื่อพัสดุมาส่งถึงโรงเรียน ระบบจะแจ้งเตือนให้ท่านร่วมตรวจรับอีกครั้งค่ะ 🌸</i>`;
+            await sendTelegramMessage(botToken, numChatId, cMsg);
+          }
+        }
+      }
+    } catch (notifyErr) {
+      console.error('[PROCUREMENT WEBHOOK] Background notification error:', notifyErr);
+    }
+
+    return;
+  }
+
+  // 4. กรณี: ส่งกลับแก้ไข / ไม่อนุมัติ (prc_rej)
+  if (action === 'prc_rej') {
+    await answerCallbackQuery(botToken, callbackQuery.id, '↩️ บันทึกการส่งกลับแก้ไขแล้วค่ะ');
+
+    await supabase
+      .from('procurement_cases')
+      .update({
+        status: 'returned',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', caseId);
+
+    await editTelegramMessageMarkup(botToken, callbackChatId, callbackQuery.message.message_id, {
+      inline_keyboard: [[{ text: `↩️ ส่งกลับแก้ไขแล้ว (${profileLinked.display_name || ''})`, callback_data: 'action=noop' }]]
+    });
+
+    let rejMsg = `↩️ <b>[ส่งกลับเพื่อแก้ไข] สำนวนจัดซื้อจัดจ้าง</b>\n`;
+    rejMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    rejMsg += `📂 <b>สำนวน:</b> <code>${escapeHtml(caseData.pcid)}</code>\n`;
+    rejMsg += `📝 <b>เรื่อง:</b> ${escapeHtml(caseData.title)}\n`;
+    rejMsg += `👤 <b>ผู้ส่งกลับ:</b> ${escapeHtml(profileLinked.display_name || 'ผู้มีอำนาจ')}\n`;
+    rejMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    rejMsg += `<i>กรุณาติดต่อเจ้าหน้าที่พัสดุเพื่อตรวจสอบและปรับปรุงเอกสารในระบบ EPCM ค่ะ</i>`;
+
+    await sendTelegramMessage(botToken, callbackChatId, rejMsg);
+    return;
+  }
+}
+
 export default async function handler(req: any, res: any) {
   // รองรับเฉพาะ POST Webhook เท่านั้น
   if (req.method !== 'POST') {
@@ -1612,6 +1905,23 @@ export default async function handler(req: any, res: any) {
 
       if (action === 'noop') {
         await answerCallbackQuery(botToken, callbackQuery.id);
+        return res.status(200).json({ ok: true });
+      }
+
+      // ============================================================
+      // 📦 EPCM Procurement Interactive Callback Routing (Zero-Regression)
+      // ============================================================
+      if (action && action.startsWith('prc_')) {
+        await handleProcurementCallback(
+          action,
+          params,
+          callbackQuery,
+          callbackChatId,
+          profileLinked,
+          botToken,
+          supabase,
+          settings
+        );
         return res.status(200).json({ ok: true });
       }
 
