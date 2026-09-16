@@ -20,6 +20,7 @@ import {
 import { ProcurementNumberingService } from '../../services/procurementNumberingService';
 import { ProcurementOcrService } from '../../services/procurementOcrService';
 import { thaiBahtText } from '../../services/procurementDocGenerator';
+import { supabase } from '../../lib/supabase';
 
 interface Teacher {
   id: string;
@@ -59,9 +60,60 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
   const [category, setCategory] = useState('goods'); // 'goods', 'service_general', 'service_12m', 'construction', 'lunch'
   const [policyCode, setPolicyCode] = useState('W089');
   const [budgetId, setBudgetId] = useState(budgets[0]?.id || '');
+  const [budgetList, setBudgetList] = useState<any[]>(budgets);
+  const [showAddBudgetModal, setShowAddBudgetModal] = useState(false);
+  const [newBudgetName, setNewBudgetName] = useState('');
+  const [newBudgetType, setNewBudgetType] = useState('งบอุดหนุน');
+  const [newBudgetAmount, setNewBudgetAmount] = useState<number>(50000);
+  const [savingBudget, setSavingBudget] = useState(false);
   const [fiscalYear, setFiscalYear] = useState('2569');
   const [requestDate, setRequestDate] = useState(new Date().toISOString().split('T')[0]);
   const [customMemoNumber, setCustomMemoNumber] = useState('');
+
+  // Sync budgetList when props change
+  React.useEffect(() => {
+    if (budgets && budgets.length > 0) {
+      setBudgetList(budgets);
+      if (!budgetId) setBudgetId(budgets[0].id);
+    }
+  }, [budgets]);
+
+  const handleAddNewBudget = async () => {
+    if (!newBudgetName.trim()) {
+      alert('กรุณาระบุชื่อหมวดงบประมาณ');
+      return;
+    }
+    setSavingBudget(true);
+    try {
+      const payload = {
+        category_name: newBudgetName.trim(),
+        budget_type: newBudgetType,
+        academic_year: fiscalYear || '2569',
+        amount: Number(newBudgetAmount) || 0,
+        spent_amount: 0,
+        remaining_amount: Number(newBudgetAmount) || 0
+      };
+      const { data, error } = await supabase
+        .from('budget_allocations')
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setBudgetList(prev => [data, ...prev]);
+        setBudgetId(data.id);
+        setShowAddBudgetModal(false);
+        setNewBudgetName('');
+        alert(`เพิ่มแหล่งงบประมาณ "${data.category_name}" สำเร็จเรียบร้อยแล้วค่ะ`);
+      }
+    } catch (err: any) {
+      console.error('Error saving budget:', err);
+      alert(`เพิ่มงบประมาณไม่สำเร็จ: ${err.message}`);
+    } finally {
+      setSavingBudget(false);
+    }
+  };
 
   // Vendor Info
   const [vendorName, setVendorName] = useState('');
@@ -357,12 +409,13 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
         finalMemoId = memo_id;
       }
 
+      const isBudgetUUID = typeof budgetId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(budgetId);
       const caseData = {
         pcid,
         title,
         category,
         policy_code: policyCode,
-        budget_id: budgetId || null,
+        budget_id: isBudgetUUID ? budgetId : null,
         estimated_amount: estimatedAmount,
         final_amount: estimatedAmount,
         current_gate: policyCode === 'W119_10K' ? 5 : 2, // ว.119 ข้ามไปด่านเบิกจ่ายได้เลย
@@ -509,13 +562,23 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">แหล่งงบประมาณ</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-bold text-slate-700">แหล่งงบประมาณ</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddBudgetModal(true)}
+                      className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      <span>➕ เพิ่มแหล่งงบประมาณ</span>
+                    </button>
+                  </div>
                   <select
                     value={budgetId}
                     onChange={(e) => setBudgetId(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
-                    {budgets.map(b => (
+                    {budgetList.map(b => (
                       <option key={b.id} value={b.id}>
                         {b.category_name} ({b.budget_type}) - คงเหลือ ฿{Number(b.remaining_amount || b.amount).toLocaleString()}
                       </option>
@@ -1018,6 +1081,86 @@ export const ProcurementWizard: React.FC<ProcurementWizardProps> = ({
         </div>
 
       </div>
+
+      {/* Modal: เพิ่มแหล่งงบประมาณใหม่ */}
+      {showAddBudgetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <DollarSign size={18} className="text-blue-600" />
+                <span>เพิ่มแหล่งงบประมาณใหม่</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddBudgetModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อหมวดงบประมาณ *</label>
+                <input
+                  type="text"
+                  value={newBudgetName}
+                  onChange={(e) => setNewBudgetName(e.target.value)}
+                  placeholder="เช่น เงินรายได้สถานศึกษา, งบกิจกรรมพัฒนาผู้เรียน"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ประเภทงบประมาณ *</label>
+                <select
+                  value={newBudgetType}
+                  onChange={(e) => setNewBudgetType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                >
+                  <option value="งบอุดหนุน">งบอุดหนุน (รายหัว / เรียนฟรี 15 ปี)</option>
+                  <option value="เงินรายได้">เงินรายได้สถานศึกษา</option>
+                  <option value="อาหารกลางวัน">งบอาหารกลางวันนักเรียน</option>
+                  <option value="งบดำเนินงาน">งบดำเนินงาน / บริหารทั่วไป</option>
+                  <option value="งบลงทุน">งบลงทุน / ครุภัณฑ์ที่ดินสิ่งก่อสร้าง</option>
+                  <option value="เงินบริจาค">เงินบริจาค / ระดมทรัพยากร</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">วงเงินงบประมาณจัดสรร (บาท) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={newBudgetAmount}
+                  onChange={(e) => setNewBudgetAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowAddBudgetModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleAddNewBudget}
+                disabled={savingBudget}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {savingBudget ? 'กำลังบันทึก...' : 'บันทึกแหล่งงบประมาณ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

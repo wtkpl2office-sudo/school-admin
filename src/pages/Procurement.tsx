@@ -463,14 +463,17 @@ export default function Procurement() {
         localStorage.setItem('local_procurement_cases', JSON.stringify(localList));
       }
 
-      // 3. กรณีเป็นเคสใน Supabase (Cascade delete)
-      try {
-        await supabase.from('procurement_case_items').delete().eq('case_id', caseId);
-        await supabase.from('procurement_case_audit_logs').delete().eq('case_id', caseId);
-        await supabase.from('procurement_case_milestones').delete().eq('case_id', caseId);
-        await supabase.from('procurement_cases').delete().eq('id', caseId);
-      } catch (err) {
-        console.warn('Supabase delete error (offline or not found):', err);
+      // 3. กรณีเป็นเคสใน Supabase (Cascade delete เฉพาะกรณีเป็น UUID จริง)
+      const isRealUUID = typeof caseId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(caseId);
+      if (isRealUUID) {
+        try {
+          await supabase.from('procurement_case_items').delete().eq('case_id', caseId);
+          await supabase.from('procurement_case_audit_logs').delete().eq('case_id', caseId);
+          await supabase.from('procurement_case_milestones').delete().eq('case_id', caseId);
+          await supabase.from('procurement_cases').delete().eq('id', caseId);
+        } catch (err) {
+          console.warn('Supabase delete error:', err);
+        }
       }
 
       // 4. อัปเดต State หน้าจอ
