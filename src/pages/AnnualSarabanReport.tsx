@@ -698,16 +698,25 @@ export default function AnnualSarabanReport() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse border border-slate-300">
+            <table className="w-full text-left text-sm border-collapse border border-slate-300" style={{tableLayout:'fixed'}}>
+              <colgroup>
+                <col style={{width:'6%'}}/>   {/* เลขที่รับ */}
+                <col style={{width:'9%'}}/>   {/* วันที่รับ */}
+                <col style={{width:'14%'}}/>  {/* เลขที่หนังสือ */}
+                <col style={{width:'9%'}}/>   {/* ลงวันที่ */}
+                <col style={{width:'32%'}}/>  {/* เรื่อง */}
+                <col style={{width:'18%'}}/>  {/* จากหน่วยงาน */}
+                <col style={{width:'12%'}}/>  {/* ผู้รับมอบหมาย */}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-100 print:bg-slate-200 text-slate-800 font-bold border-b border-slate-300">
-                  <th className="p-2 border border-slate-300 text-center w-16">เลขที่รับ</th>
-                  <th className="p-2 border border-slate-300 text-center w-24">วันที่รับ</th>
-                  <th className="p-2 border border-slate-300 w-32">เลขที่หนังสือ</th>
-                  <th className="p-2 border border-slate-300 text-center w-24">ลงวันที่</th>
+                  <th className="p-2 border border-slate-300 text-center">เลขที่รับ</th>
+                  <th className="p-2 border border-slate-300 text-center">วันที่รับ</th>
+                  <th className="p-2 border border-slate-300">เลขที่หนังสือ</th>
+                  <th className="p-2 border border-slate-300 text-center">ลงวันที่</th>
                   <th className="p-2 border border-slate-300">เรื่อง</th>
-                  <th className="p-2 border border-slate-300 w-36">จากหน่วยงาน</th>
-                  <th className="p-2 border border-slate-300 w-36">ผู้รับมอบหมาย</th>
+                  <th className="p-2 border border-slate-300">จากหน่วยงาน</th>
+                  <th className="p-2 border border-slate-300">ผู้รับมอบหมาย</th>
                 </tr>
               </thead>
               <tbody>
@@ -756,17 +765,27 @@ export default function AnnualSarabanReport() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse border border-slate-300">
+            <table className="w-full text-left text-sm border-collapse border border-slate-300" style={{tableLayout:'fixed'}}>
+              <colgroup>
+                <col style={{width:'5%'}}/>   {/* ลำดับ */}
+                <col style={{width:'22%'}}/>  {/* ชื่อ-สกุล */}
+                <col style={{width:'18%'}}/>  {/* ตำแหน่ง */}
+                <col style={{width:'15%'}}/>  {/* ฝ่ายงาน */}
+                <col style={{width:'10%'}}/>  {/* มอบหมาย */}
+                <col style={{width:'10%'}}/>  {/* แล้วเสร็จ */}
+                <col style={{width:'10%'}}/>  {/* ค้างดำเนินการ */}
+                <col style={{width:'10%'}}/>  {/* ร้อยละ */}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-100 print:bg-slate-200 text-slate-800 font-bold border-b border-slate-300">
-                  <th className="p-2.5 border border-slate-300 text-center w-12">ลำดับ</th>
+                  <th className="p-2.5 border border-slate-300 text-center">ลำดับ</th>
                   <th className="p-2.5 border border-slate-300">ชื่อ-สกุล ครูผู้ปฏิบัติงาน</th>
-                  <th className="p-2.5 border border-slate-300 w-36">ตำแหน่ง</th>
-                  <th className="p-2.5 border border-slate-300 w-28 text-center">ฝ่ายงาน</th>
-                  <th className="p-2.5 border border-slate-300 text-center w-28 bg-indigo-50/50 print:bg-transparent">มอบหมาย (เรื่อง)</th>
-                  <th className="p-2.5 border border-slate-300 text-center w-28 text-emerald-700 print:text-slate-900">แล้วเสร็จ</th>
-                  <th className="p-2.5 border border-slate-300 text-center w-28 text-amber-700 print:text-slate-900">ค้างดำเนินการ</th>
-                  <th className="p-2.5 border border-slate-300 text-center w-24">ร้อยละความสำเร็จ</th>
+                  <th className="p-2.5 border border-slate-300">ตำแหน่ง</th>
+                  <th className="p-2.5 border border-slate-300 text-center">ฝ่ายงาน</th>
+                  <th className="p-2.5 border border-slate-300 text-center bg-indigo-50/50 print:bg-transparent">มอบหมาย (เรื่อง)</th>
+                  <th className="p-2.5 border border-slate-300 text-center text-emerald-700 print:text-slate-900">แล้วเสร็จ</th>
+                  <th className="p-2.5 border border-slate-300 text-center text-amber-700 print:text-slate-900">ค้างดำเนินการ</th>
+                  <th className="p-2.5 border border-slate-300 text-center">ร้อยละความสำเร็จ</th>
                 </tr>
               </thead>
               <tbody>
@@ -826,16 +845,25 @@ export default function AnnualSarabanReport() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse border border-slate-300">
+            <table className="w-full text-left text-sm border-collapse border border-slate-300" style={{tableLayout:'fixed'}}>
+              <colgroup>
+                <col style={{width:'5%'}}/>   {/* ลำดับ */}
+                <col style={{width:'14%'}}/>  {/* เลขที่บันทึก */}
+                <col style={{width:'10%'}}/>  {/* วันที่ */}
+                <col style={{width:'35%'}}/>  {/* เรื่อง */}
+                <col style={{width:'18%'}}/>  {/* ผู้เขียนบันทึก */}
+                <col style={{width:'10%'}}/>  {/* ฝ่ายงาน */}
+                <col style={{width:'8%'}}/>   {/* สถานะ */}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-100 print:bg-slate-200 text-slate-800 font-bold border-b border-slate-300">
-                  <th className="p-2 border border-slate-300 text-center w-12">ลำดับ</th>
-                  <th className="p-2 border border-slate-300 w-28">เลขที่บันทึก</th>
-                  <th className="p-2 border border-slate-300 text-center w-24">วันที่</th>
+                  <th className="p-2 border border-slate-300 text-center">ลำดับ</th>
+                  <th className="p-2 border border-slate-300">เลขที่บันทึก</th>
+                  <th className="p-2 border border-slate-300 text-center">วันที่</th>
                   <th className="p-2 border border-slate-300">เรื่อง</th>
-                  <th className="p-2 border border-slate-300 w-36">ผู้เขียนบันทึก</th>
-                  <th className="p-2 border border-slate-300 w-32 text-center">ฝ่ายงาน</th>
-                  <th className="p-2 border border-slate-300 w-24 text-center">สถานะ</th>
+                  <th className="p-2 border border-slate-300">ผู้เขียนบันทึก</th>
+                  <th className="p-2 border border-slate-300 text-center">ฝ่ายงาน</th>
+                  <th className="p-2 border border-slate-300 text-center">สถานะ</th>
                 </tr>
               </thead>
               <tbody>
@@ -871,14 +899,21 @@ export default function AnnualSarabanReport() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse border border-slate-300">
+            <table className="w-full text-left text-sm border-collapse border border-slate-300" style={{tableLayout:'fixed'}}>
+              <colgroup>
+                <col style={{width:'5%'}}/>   {/* ลำดับ */}
+                <col style={{width:'18%'}}/>  {/* เลขที่หนังสือส่ง */}
+                <col style={{width:'10%'}}/>  {/* วันที่ส่ง */}
+                <col style={{width:'42%'}}/>  {/* เรื่อง */}
+                <col style={{width:'25%'}}/>  {/* ส่งถึง */}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-100 print:bg-slate-200 text-slate-800 font-bold border-b border-slate-300">
-                  <th className="p-2 border border-slate-300 text-center w-12">ลำดับ</th>
-                  <th className="p-2 border border-slate-300 w-32">เลขที่หนังสือส่ง</th>
-                  <th className="p-2 border border-slate-300 text-center w-24">วันที่ส่ง</th>
+                  <th className="p-2 border border-slate-300 text-center">ลำดับ</th>
+                  <th className="p-2 border border-slate-300">เลขที่หนังสือส่ง</th>
+                  <th className="p-2 border border-slate-300 text-center">วันที่ส่ง</th>
                   <th className="p-2 border border-slate-300">เรื่อง</th>
-                  <th className="p-2 border border-slate-300 w-44">ส่งถึง (หน่วยงานปลายทาง)</th>
+                  <th className="p-2 border border-slate-300">ส่งถึง (หน่วยงานปลายทาง)</th>
                 </tr>
               </thead>
               <tbody>
@@ -906,14 +941,21 @@ export default function AnnualSarabanReport() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse border border-slate-300">
+            <table className="w-full text-left text-sm border-collapse border border-slate-300" style={{tableLayout:'fixed'}}>
+              <colgroup>
+                <col style={{width:'5%'}}/>   {/* ลำดับ */}
+                <col style={{width:'18%'}}/>  {/* ที่คำสั่ง */}
+                <col style={{width:'10%'}}/>  {/* วันที่สั่งการ */}
+                <col style={{width:'47%'}}/>  {/* เรื่อง */}
+                <col style={{width:'20%'}}/>  {/* ผู้ลงนาม */}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-100 print:bg-slate-200 text-slate-800 font-bold border-b border-slate-300">
-                  <th className="p-2 border border-slate-300 text-center w-12">ลำดับ</th>
-                  <th className="p-2 border border-slate-300 w-32">ที่คำสั่ง</th>
-                  <th className="p-2 border border-slate-300 text-center w-24">วันที่สั่งการ</th>
+                  <th className="p-2 border border-slate-300 text-center">ลำดับ</th>
+                  <th className="p-2 border border-slate-300">ที่คำสั่ง</th>
+                  <th className="p-2 border border-slate-300 text-center">วันที่สั่งการ</th>
                   <th className="p-2 border border-slate-300">เรื่อง</th>
-                  <th className="p-2 border border-slate-300 w-36">ผู้ลงนาม</th>
+                  <th className="p-2 border border-slate-300">ผู้ลงนาม</th>
                 </tr>
               </thead>
               <tbody>
