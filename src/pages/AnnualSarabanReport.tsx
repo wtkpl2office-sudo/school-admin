@@ -691,7 +691,7 @@ export default function AnnualSarabanReport() {
         {/* -----------------------------------------------------------------------
             ส่วนที่ 2: ทะเบียนหนังสือรับ (Incoming Docs Register)
         ----------------------------------------------------------------------- */}
-        <div className={`${activeTab === 'incoming' ? 'block' : 'hidden print:block'} print:break-after-page mt-8 print:mt-0`}>
+        <div className={`${activeTab === 'incoming' ? 'block' : 'hidden print:block'} print:break-after-page mt-8 print:mt-0 print-landscape`}>
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold">ทะเบียนหนังสือรับ (หนังสือเข้า) ประจำปี พ.ศ. {selectedYear}</h2>
             <p className="text-sm text-slate-600">{schoolName} (รวมทั้งสิ้น {incomingDocs.length} เรื่อง)</p>
@@ -838,7 +838,7 @@ export default function AnnualSarabanReport() {
         {/* -----------------------------------------------------------------------
             ส่วนที่ 4: ทะเบียนบันทึกข้อความ (Memos Register)
         ----------------------------------------------------------------------- */}
-        <div className={`${activeTab === 'memos' ? 'block' : 'hidden print:block'} print:break-after-page mt-8 print:mt-0`}>
+        <div className={`${activeTab === 'memos' ? 'block' : 'hidden print:block'} print:break-after-page mt-8 print:mt-0 print-landscape`}>
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold">ทะเบียนบันทึกข้อความ ประจำปี พ.ศ. {selectedYear}</h2>
             <p className="text-sm text-slate-600">{schoolName} (รวมทั้งสิ้น {memos.length} ฉบับ)</p>
@@ -892,7 +892,7 @@ export default function AnnualSarabanReport() {
         {/* -----------------------------------------------------------------------
             ส่วนที่ 5: ทะเบียนหนังสือส่ง (Outgoing Docs Register)
         ----------------------------------------------------------------------- */}
-        <div className={`${activeTab === 'outgoing' ? 'block' : 'hidden print:block'} print:break-after-page mt-8 print:mt-0`}>
+        <div className={`${activeTab === 'outgoing' ? 'block' : 'hidden print:block'} print:break-after-page mt-8 print:mt-0 print-landscape`}>
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold">ทะเบียนหนังสือส่ง (หนังสือออก) ประจำปี พ.ศ. {selectedYear}</h2>
             <p className="text-sm text-slate-600">{schoolName} (รวมทั้งสิ้น {outgoingDocs.length} เรื่อง)</p>
@@ -934,7 +934,7 @@ export default function AnnualSarabanReport() {
         {/* -----------------------------------------------------------------------
             ส่วนที่ 6: ทะเบียนคำสั่งโรงเรียน (Orders Register)
         ----------------------------------------------------------------------- */}
-        <div className={`${activeTab === 'orders' ? 'block' : 'hidden print:block'} mt-8 print:mt-0`}>
+        <div className={`${activeTab === 'orders' ? 'block' : 'hidden print:block'} mt-8 print:mt-0 print-landscape`}>
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold">ทะเบียนคำสั่งโรงเรียน ประจำปี พ.ศ. {selectedYear}</h2>
             <p className="text-sm text-slate-600">{schoolName} (รวมทั้งสิ้น {orders.length} ฉบับ)</p>
@@ -978,9 +978,18 @@ export default function AnnualSarabanReport() {
       {/* สไตล์การพิมพ์ A4 และหัวตารางซ้ำอัตโนมัติ */}
       <style>{`
         @media print {
+          /* ค่าเริ่มต้น: แนวตั้ง A4 (บันทึกข้อความปะหน้า + รายงานภาระงาน) */
           @page {
             size: A4 portrait;
             margin: 20mm 15mm 15mm 25mm;
+          }
+          /* Named page แนวนอน A4 (ทะเบียนทุกเล่ม) */
+          @page landscape-page {
+            size: A4 landscape;
+            margin: 15mm 15mm 15mm 20mm;
+          }
+          .print-landscape {
+            page: landscape-page;
           }
           html, body {
             background: white !important;
@@ -997,20 +1006,19 @@ export default function AnnualSarabanReport() {
             page-break-after: always;
             break-after: page;
           }
-          /* ป้องกันตาราง overflow A4 */
+          /* ป้องกันตาราง overflow หน้ากระดาษ */
           table {
             table-layout: fixed !important;
             width: 100% !important;
-            font-size: 10pt !important;
+            font-size: 10.5pt !important;
           }
           td, th {
             word-break: break-word !important;
             overflow-wrap: break-word !important;
             white-space: normal !important;
             vertical-align: top !important;
-            padding: 3pt 4pt !important;
+            padding: 3pt 5pt !important;
           }
-          /* ซ่อนคอลัมน์ที่ไม่จำเป็นในหน้า incoming */
           .print-hide {
             display: none !important;
           }
