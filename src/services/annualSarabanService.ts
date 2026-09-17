@@ -58,55 +58,59 @@ export class AnnualSarabanService {
    */
   static async getStaffWorkload(docYear: number): Promise<StaffWorkloadSummary[]> {
     try {
-      const { data, error } = await supabase.rpc('get_staff_workload_summary', {
-        p_doc_year: docYear
+      // 1. ดึง profiles (master list — 1 row ต่อ 1 account จริง) + teachers join ด้วย email
+      const [profilesRes, teachersRes, assignRes] = await Promise.all([
+        supabase.from('profiles').select('id, display_name, email, role, status').eq('status', 'active'),
+        supabase.from('teachers').select('email, prefix, first_name, last_name, position, department'),
+        supabase.from('doc_assignments')
+          .select('assignee_id, status, incoming_docs!inner(doc_year)')
+          .eq('incoming_docs.doc_year', docYear)
+      ]);
+
+      const profiles = profilesRes.data || [];
+      const teachers = teachersRes.data || [];
+      const assignments = assignRes.data || [];
+
+      // 2. Map email → teacher info
+      const teacherByEmail = new Map<string, any>();
+      teachers.forEach(t => {
+        if (t.email) teacherByEmail.set(t.email.toLowerCase(), t);
       });
 
-      if (error) {
-        console.warn('[AnnualSarabanService] RPC workload error, using fallback:', error);
-        return await this.fallbackWorkload(docYear);
-      }
+      // 3. นับงานต่อ assignee_id
+      const statsById = new Map<string, { total: number; completed: number; pending: number }>();
+      (assignments as any[]).forEach((a: any) => {
+        const id = a.assignee_id;
+        if (!id) return;
+        const s = statsById.get(id) || { total: 0, completed: 0, pending: 0 };
+        s.total += 1;
+        if (['reported', 'acknowledged', 'completed'].includes(a.status)) s.completed += 1;
+        else s.pending += 1;
+        statsById.set(id, s);
+      });
 
-      const raw = (data as any[] || []).map(row => ({
-        staffId: row.staff_id,
-        staffName: row.staff_name,
-        position: row.staff_position || row.position || 'ครูผู้สอน',
-        department: row.staff_department || row.department || 'วิชาการ',
-        totalAssigned: Number(row.total_assigned || 0),
-        completedCount: Number(row.completed_count || 0),
-        pendingCount: Number(row.pending_count || 0),
-        completionRate: Number(row.completion_rate || 0)
-      }));
+      // 4. สร้าง result จาก profiles (ไม่ซ้ำแน่นอน)
+      const result: StaffWorkloadSummary[] = profiles.map(p => {
+        const t = teacherByEmail.get(p.email?.toLowerCase() || '');
+        const fullName = t
+          ? `${t.prefix || ''}${t.first_name} ${t.last_name || ''}`.trim()
+          : p.display_name || p.email || 'ไม่ระบุชื่อ';
+        const s = statsById.get(p.id) || { total: 0, completed: 0, pending: 0 };
+        const rate = s.total > 0 ? Math.round((s.completed / s.total) * 1000) / 10 : 0;
+        return {
+          staffId: p.id,
+          staffName: fullName,
+          position: t?.position || (p.role === 'admin' ? 'ผู้ดูแลระบบ' : 'บุคลากร'),
+          department: t?.department || 'ทั่วไป',
+          totalAssigned: s.total,
+          completedCount: s.completed,
+          pendingCount: s.pending,
+          completionRate: rate
+        };
+      });
 
-      // ฟังก์ชัน normalize ชื่อ: ตัดคำนำหน้า + collapse whitespace + lowercase
-      const normalizeName = (name: string) => 
-        name.trim()
-          .replace(/\s+/g, ' ')  // collapse double/multiple spaces → single space
-          .replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.)\s*/u, '')
-          .toLowerCase();
+      return result.sort((a, b) => b.totalAssigned - a.totalAssigned);
 
-      // Step 1: dedup ด้วย staffId — เก็บที่มีงานมากกว่า
-      const byId = new Map<string, StaffWorkloadSummary>();
-      for (const item of raw) {
-        const key = item.staffId || item.staffName;
-        const existing = byId.get(key);
-        if (!existing || item.totalAssigned > existing.totalAssigned) {
-          byId.set(key, item);
-        }
-      }
-
-      // Step 2: dedup ด้วยชื่อ normalize — กรณีคนเดียวมี 2 account (staffId ต่างกัน)
-      const byName = new Map<string, StaffWorkloadSummary>();
-      for (const item of Array.from(byId.values())) {
-        const key = normalizeName(item.staffName);
-        const existing = byName.get(key);
-        if (!existing || item.totalAssigned > existing.totalAssigned) {
-          byName.set(key, item);
-        }
-      }
-
-      return Array.from(byName.values())
-        .sort((a, b) => b.totalAssigned - a.totalAssigned);
     } catch (err) {
       console.error('[AnnualSarabanService] Exception in getStaffWorkload:', err);
       return await this.fallbackWorkload(docYear);
