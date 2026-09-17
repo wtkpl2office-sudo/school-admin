@@ -535,7 +535,7 @@ async function smartFetchContext(message: string, currentYear: string, supabase:
       }
     },
     {
-      keys: ['โครงการ', 'งบประมาณ', 'งบ', 'เงินงบ', 'สถิติ', 'สรุป', 'ผลสัมฤทธิ์', 'จัดซื้อจัดจ้าง', 'ซื้อจ้าง'],
+      keys: ['โครงการ', 'งบประมาณ', 'งบ', 'เงินงบ', 'จัดซื้อจัดจ้าง', 'ซื้อจ้าง', 'ยอดเงินงบ'],
       fetch: async () => {
         let projQuery = supabase.from('school_projects').select('project_name, planned_amount, spent_amount, status, budget_allocations(budget_type, category_name)').eq('academic_year', currentYear);
         let budgQuery = supabase.from('budget_allocations').select('id, budget_type, category_name, amount, spent_amount, remaining_amount').eq('academic_year', currentYear);
@@ -4217,10 +4217,14 @@ export default async function handler(req: any, res: any) {
 
       // ── คำสั่งด่วน: สรุปภาพรวมสารบรรณและภาระงานสำหรับผู้บริหาร ──
       if (
+        normCmd === '/สรุป' || normCmd === 'สรุป' ||
         normCmd === '/สรุปผู้บริหาร' || normCmd === 'สรุปผู้บริหาร' ||
         normCmd === '/สรุปสารบรรณ' || normCmd === 'สรุปสารบรรณ' ||
         normCmd === '/สรุปประจำสัปดาห์' || normCmd === 'สรุปประจำสัปดาห์' ||
-        normCmd === '/สรุปงาน' || normCmd === 'สรุปงาน'
+        normCmd === '/สรุปภาพรวม' || normCmd === 'สรุปภาพรวม' ||
+        normCmd === '/สรุปงาน' || normCmd === 'สรุปงาน' ||
+        normCmd === '/สถิติ' || normCmd === 'สถิติ' ||
+        normCmd === '/รายงาน' || normCmd === 'รายงาน'
       ) {
         const [incRes, outRes, memoRes, ordRes] = await Promise.all([
           supabase.from('incoming_docs').select('*', { count: 'exact', head: true }).eq('doc_year', docYearNum),
@@ -4267,12 +4271,21 @@ export default async function handler(req: any, res: any) {
 
         summaryMsg += `💡 คุณครูและผู้บริหารสามารถเปิดดูชุดรายงานประจำปี A4 พร้อมบันทึกปะหน้า และส่งออก Excel ได้ที่ลิงก์ด้านล่างค่ะ 🌸`;
 
+        // Dynamic domain URL สำหรับแต่ละโรงเรียน (โรงเรียนที่ 1 vs โรงเรียนที่ 2)
+        const hostHeader = req?.headers?.['x-forwarded-host'] || req?.headers?.host || '';
+        let appBaseUrl = 'https://school-admin-psi.vercel.app';
+        if (hostHeader && !hostHeader.includes('localhost')) {
+          appBaseUrl = `https://${hostHeader}`;
+        } else if (settings?.school_name && !settings.school_name.includes('ควนโคกยา')) {
+          appBaseUrl = 'https://school-admin-lime.vercel.app';
+        }
+
         const replyMarkup = {
           inline_keyboard: [
             [
               {
                 text: '📑 เปิดดูชุดรายงานประจำปี A4 & ส่งออก Excel',
-                url: 'https://school-admin-psi.vercel.app/annual-report'
+                url: `${appBaseUrl}/annual-report`
               }
             ]
           ]
