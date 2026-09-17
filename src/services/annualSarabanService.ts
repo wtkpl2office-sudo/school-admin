@@ -78,9 +78,10 @@ export class AnnualSarabanService {
         completionRate: Number(row.completion_rate || 0)
       }));
 
-      // ฟังก์ชัน normalize ชื่อ: ตัดคำนำหน้า (นาย/นางสาว/นาง/ด.ช./ด.ญ.) ออก เพื่อ match ชื่อซ้ำ
+      // ฟังก์ชัน normalize ชื่อ: ตัดคำนำหน้า + collapse whitespace + lowercase
       const normalizeName = (name: string) => 
         name.trim()
+          .replace(/\s+/g, ' ')  // collapse double/multiple spaces → single space
           .replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.)\s*/u, '')
           .toLowerCase();
 
