@@ -391,12 +391,78 @@ function buildThaiDocOrFilter(searchWord: string, numberCol: string = 'doc_numbe
   return filters.join(',');
 }
 
+/** ซิงค์ประวัติการออก/จองเลขเข้าสู่ระบบออกเลขกลาง (Unified Numbering Engine) ป้องกันเลขชนกัน */
+async function syncUnifiedAllocation(
+  supabase: any,
+  seriesCode: string,
+  docYear: number,
+  sequenceNum: number,
+  formattedNum: string,
+  title: string,
+  userName: string,
+  tableName: string
+) {
+  try {
+    await supabase.from('document_number_allocations').insert([{
+      series_code: seriesCode,
+      doc_year: docYear,
+      sequence_number: sequenceNum,
+      formatted_number: formattedNum,
+      status: 'reserved',
+      title: title,
+      requested_by_name: userName || 'Telegram User',
+      channel: 'telegram',
+      document_table: tableName
+    }]);
+    await supabase.from('document_number_counters').upsert({
+      series_code: seriesCode,
+      doc_year: docYear,
+      last_sequence: sequenceNum,
+      updated_at: new Date().toISOString()
+    });
+  } catch (syncErr) {
+    console.log('[TELEGRAM NUMBER SYNC NON-BLOCKING]', syncErr);
+  }
+}
+
 /** Smart Data Fetch — ดึงข้อมูลจริงจากฐานข้อมูลตามหมวดคำถาม (เทียบเท่า LINE Bot) */
 async function smartFetchContext(message: string, currentYear: string, supabase: any, schoolId?: string, profileLinked?: any): Promise<string> {
   const msg = message.toLowerCase();
   const targetClass = extractClassLevel(message);
 
   const rules = [
+    {
+      keys: ['สรุปสารบรรณ', 'สรุปงานสารบรรณ', 'สถิติสารบรรณ', 'รายงานประจำปี', 'สรุปประจำปี', 'งานสารบรรณปีนี้', 'สถิติหนังสือ', 'ภาระงานครู', 'งานครู', 'สรุปงานปี', 'สถิติงาน'],
+      fetch: async () => {
+        const year = parseInt(currentYear, 10) || new Date().getFullYear() + 543;
+        try {
+          const [incRes, memoRes, outRes, ordRes, workloadRes] = await Promise.all([
+            supabase.from('incoming_docs').select('id', { count: 'exact', head: true }).or(`doc_year.eq.${year}`),
+            supabase.from('memos').select('id', { count: 'exact', head: true }).or(`doc_year.eq.${year}`),
+            supabase.from('outgoing_docs').select('id', { count: 'exact', head: true }).or(`doc_year.eq.${year}`),
+            supabase.from('orders').select('id', { count: 'exact', head: true }).or(`doc_year.eq.${year}`),
+            supabase.rpc('get_staff_workload_summary', { p_doc_year: year })
+          ]);
+
+          const incomingCount = incRes.count || 0;
+          const memoCount = memoRes.count || 0;
+          const outgoingCount = outRes.count || 0;
+          const orderCount = ordRes.count || 0;
+          const totalCount = incomingCount + memoCount + outgoingCount + orderCount;
+          const workload = workloadRes.data || [];
+
+          return `📊 สถิติรายงานสรุปงานสารบรรณ ประจำปี พ.ศ. ${year}:
+- ๑. ทะเบียนหนังสือรับ (หนังสือเข้า): ${incomingCount} เรื่อง
+- ๒. ทะเบียนบันทึกข้อความ: ${memoCount} ฉบับ
+- ๓. ทะเบียนหนังสือส่ง (หนังสือออก): ${outgoingCount} เรื่อง
+- ๔. ทะเบียนคำสั่งโรงเรียน: ${orderCount} ฉบับ
+- รวมงานสารบรรณที่ดำเนินการทั้งสิ้น: ${totalCount} รายการ
+ข้อมูลสรุปการกระจายภาระงานครูและบุคลากร (จำแนกตามรายบุคคล): ${JSON.stringify(workload.slice(0, 15))}`;
+        } catch (err: any) {
+          return `สถิติงานสารบรรณปี ${year} (ข้อมูลเบื้องต้น): ไม่สามารถประมวลผลสถิติแบบละเอียดได้ในขณะนี้`;
+        }
+      }
+    },
     {
       keys: ['ค้างเกษียณ', 'รอเกษียณ', 'ยังไม่ได้เกษียณ', 'ยังไม่เกษียณ', 'ผอ. ยังไม่ได้ทำ', 'ผอ. ยังไม่สั่ง', 'ค้างผอ', 'หนังสือค้าง', 'รอสั่งการ', 'ค้างสั่งการ'],
       fetch: async () => {
@@ -3858,6 +3924,9 @@ export default async function handler(req: any, res: any) {
           return res.status(200).json({ ok: true });
         }
 
+        // ซิงค์เข้าสู่ระบบออกเลขกลาง Unified Numbering
+        await syncUnifiedAllocation(supabase, 'MEMO', docYearNum, nextSeq, fullNumber, subject, profileLinked.display_name, 'memos');
+
         const msg = `✅ <b>ขอเลขบันทึกข้อความสำเร็จ! (สถานะ: จองเลข)</b>\n\n📌 <b>เลขที่บันทึกข้อความ:</b> <code>${escapeHtml(fullNumber)}</code>\n📄 <b>เรื่อง:</b> ${escapeHtml(subject)}\n👤 <b>ผู้ขอเลข:</b> ${escapeHtml(profileLinked.display_name || '-')}\n\n💡 <i>เลขถูกจองไว้ในระบบแล้ว สามารถส่งไฟล์ PDF มาแนบย้อนหลังได้ตลอดเวลาค่ะ 🌸</i>`;
         await sendTelegramMessage(botToken, chatId, msg);
         return res.status(200).json({ ok: true });
@@ -3904,6 +3973,9 @@ export default async function handler(req: any, res: any) {
           return res.status(200).json({ ok: true });
         }
 
+        // ซิงค์เข้าสู่ระบบออกเลขกลาง Unified Numbering
+        await syncUnifiedAllocation(supabase, 'OUTGOING', docYearNum, nextSeq, fullNumber, subject, profileLinked.display_name, 'outgoing_docs');
+
         const msg = `✅ <b>ขอเลขหนังสือส่งสำเร็จ! (สถานะ: จองเลข)</b>\n\n📌 <b>เลขที่หนังสือส่ง:</b> <code>${escapeHtml(fullNumber)}</code>\n📄 <b>เรื่อง:</b> ${escapeHtml(subject)}\n🏢 <b>ถึง:</b> ${escapeHtml(toAgency)}\n👤 <b>ผู้ขอเลข:</b> ${escapeHtml(profileLinked.display_name || '-')}\n\n💡 <i>เลขหนังสือส่งถูกจองไว้ในระบบแล้ว สามารถส่งไฟล์ PDF มาแนบย้อนหลังได้ตลอดเวลาค่ะ 🌸</i>`;
         await sendTelegramMessage(botToken, chatId, msg);
         return res.status(200).json({ ok: true });
@@ -3938,6 +4010,9 @@ export default async function handler(req: any, res: any) {
           await sendTelegramMessage(botToken, chatId, `❌ ขออภัยค่ะ ไม่สามารถออกเลขคำสั่งได้: ${escapeHtml(error.message)}`);
           return res.status(200).json({ ok: true });
         }
+
+        // ซิงค์เข้าสู่ระบบออกเลขกลาง Unified Numbering
+        await syncUnifiedAllocation(supabase, 'SCHOOL_ORDER', docYearNum, nextSeq, fullNumber, subject, profileLinked.display_name, 'orders');
 
         const msg = `✅ <b>ขอเลขคำสั่งโรงเรียนสำเร็จ! (สถานะ: จองเลข)</b>\n\n📌 <b>เลขที่คำสั่ง:</b> <code>${escapeHtml(fullNumber)}</code>\n📄 <b>เรื่อง:</b> ${escapeHtml(subject)}\n👤 <b>ผู้ขอเลข:</b> ${escapeHtml(profileLinked.display_name || '-')}\n\n💡 <i>เลขคำสั่งถูกจองไว้ในระบบแล้ว สามารถส่งไฟล์ PDF มาแนบย้อนหลังได้ตลอดเวลาค่ะ 🌸</i>`;
         await sendTelegramMessage(botToken, chatId, msg);
@@ -3983,6 +4058,9 @@ export default async function handler(req: any, res: any) {
           await sendTelegramMessage(botToken, chatId, `❌ ขออภัยค่ะ ไม่สามารถออกเลขรับได้: ${escapeHtml(error.message)}`);
           return res.status(200).json({ ok: true });
         }
+
+        // ซิงค์เข้าสู่ระบบออกเลขกลาง Unified Numbering
+        await syncUnifiedAllocation(supabase, 'INCOMING', docYearNum, nextSeq, fullNumber, subject, profileLinked.display_name, 'incoming_docs');
 
         const msg = `✅ <b>ขอเลขลงรับเอกสารสำเร็จ! (สถานะ: จองเลข)</b>\n\n📌 <b>เลขรับที่:</b> <code>${escapeHtml(fullNumber)}</code>\n📄 <b>เรื่อง:</b> ${escapeHtml(subject)}\n🏢 <b>จาก:</b> ${escapeHtml(fromAgency)}\n👤 <b>ผู้ลงรับ:</b> ${escapeHtml(profileLinked.display_name || '-')}\n\n💡 <i>เลขรับถูกจองไว้ในระบบแล้ว สามารถส่งไฟล์ PDF มาแนบย้อนหลังได้ตลอดเวลาค่ะ 🌸</i>`;
         await sendTelegramMessage(botToken, chatId, msg);
@@ -4238,11 +4316,28 @@ export default async function handler(req: any, res: any) {
     }
 
     try {
-      // 1. Smart Data Fetch — ดึงข้อมูลจริงจากฐานข้อมูลตามหมวดคำถาม
+      // 1. ดึงประวัติการสนทนาย้อนหลังในห้องแชทนี้ (Conversational Memory - 5 ข้อความล่าสุด)
+      let chatHistoryContext = "";
+      try {
+        const { data: pastChats } = await supabase
+          .from('telegram_chats')
+          .select('message, reply')
+          .eq('telegram_chat_id', String(chatId))
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (pastChats && pastChats.length > 0) {
+          chatHistoryContext = pastChats.reverse().map((c: any) => `คุณครู: ${c.message}\nน้องชบา: ${c.reply}`).join('\n');
+        }
+      } catch (chatErr) {
+        // Non-blocking fallback if table is not yet created
+      }
+
+      // 2. Smart Data Fetch — ดึงข้อมูลจริงจากฐานข้อมูลตามหมวดคำถาม
       const contextData = await smartFetchContext(cleanedText, currentYear, supabase, undefined, profileLinked);
       console.log(`[TELEGRAM WEBHOOK] Context Data size: ${contextData.length} chars`);
 
-      // 2. นับจำนวนบุคลากร
+      // 3. นับจำนวนบุคลากร
       const { count: staffCount } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
@@ -4281,7 +4376,7 @@ export default async function handler(req: any, res: any) {
 - บทบาท: ${profileLinked.role === 'director' ? 'ผู้อำนวยการโรงเรียน' : profileLinked.role === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'คุณครูผู้ปฏิบัติงาน'}
 - จำนวนบุคลากรในระบบ: ${staffCount || 0} คน`;
 
-        const userPrompt = `ข้อมูลฐานข้อมูลโรงเรียน: ${contextData || 'ไม่พบข้อมูลที่เกี่ยวข้องในฐานข้อมูล'}\nปีการศึกษา: ${currentYear}\nคำถามของคุณครู: "${cleanedText}"\nกรุณาตอบในแท็ก <ans> ให้ชบาหน่อยนะคะ`;
+        const userPrompt = `${chatHistoryContext ? `ประวัติการสนทนาล่าสุดในห้องแชทนี้:\n${chatHistoryContext}\n\n` : ''}ข้อมูลฐานข้อมูลโรงเรียน: ${contextData || 'ไม่พบข้อมูลที่เกี่ยวข้องในฐานข้อมูล'}\nปีการศึกษา: ${currentYear}\nคำถามของคุณครู: "${cleanedText}"\nกรุณาตอบในแท็ก <ans> ให้ชบาหน่อยนะคะ`;
 
         const rawResponse = await callGemini(systemPrompt, userPrompt, apiKey);
 
@@ -4327,6 +4422,18 @@ export default async function handler(req: any, res: any) {
 
             if (finalAnswer) {
               await sendTelegramMessage(botToken, chatId, finalAnswer, replyMarkup);
+              // บันทึกประวัติการสนทนาลงฐานข้อมูล (Conversational Memory)
+              try {
+                await supabase.from('telegram_chats').insert([{
+                  telegram_chat_id: String(chatId),
+                  telegram_user_id: String(profileLinked?.id || ''),
+                  user_name: profileLinked?.display_name || '',
+                  message: cleanedText,
+                  reply: finalAnswer
+                }]);
+              } catch (saveErr) {
+                // Non-blocking
+              }
             } else if (contextData) {
               // Fallback: หาก AI ตอบกลับไม่สมบูรณ์ แต่มีข้อมูลจาก DB → แปลงเป็นข้อความภาษาไทยสวยงาม ไม่ส่ง JSON ดิบ
               const humanFormatted = formatContextDataForHumans(contextData);

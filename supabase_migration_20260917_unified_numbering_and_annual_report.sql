@@ -381,12 +381,28 @@ CREATE TABLE IF NOT EXISTS annual_saraban_reports (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ------------------------------------------------------------------------------
+-- 10. ตารางบันทึกประวัติการสนทนา Telegram (Telegram Conversational Memory)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS telegram_chats (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  telegram_chat_id TEXT NOT NULL,
+  telegram_user_id TEXT,
+  user_name TEXT,
+  message TEXT,
+  reply TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telegram_chats_chat ON telegram_chats(telegram_chat_id, created_at DESC);
+
 -- มอบสิทธิ์การใช้งาน
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON document_number_series TO authenticated;
 GRANT ALL ON document_number_counters TO authenticated;
 GRANT ALL ON document_number_allocations TO authenticated;
 GRANT ALL ON annual_saraban_reports TO authenticated;
+GRANT ALL ON telegram_chats TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION reserve_document_number TO authenticated;
 GRANT EXECUTE ON FUNCTION confirm_document_number TO authenticated;
 GRANT EXECUTE ON FUNCTION void_document_number TO authenticated;
