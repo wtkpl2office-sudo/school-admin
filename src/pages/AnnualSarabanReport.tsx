@@ -105,8 +105,8 @@ export default function AnnualSarabanReport() {
             teachers:assignee_id (prefix, first_name, last_name, position)
           )
         `)
-        .or(`doc_year.eq.${selectedYear}`)
-        .order('doc_sequence', { ascending: true });
+        .eq('doc_year', selectedYear)
+        .order('doc_sequence', { ascending: true, nullsFirst: false });
 
       setIncomingDocs(incData || []);
 
@@ -114,8 +114,8 @@ export default function AnnualSarabanReport() {
       const { data: memoData } = await supabase
         .from('memos')
         .select('id, doc_sequence, memo_number, memo_date, subject, requester, department, status')
-        .or(`doc_year.eq.${selectedYear}`)
-        .order('doc_sequence', { ascending: true });
+        .eq('doc_year', selectedYear)
+        .order('doc_sequence', { ascending: true, nullsFirst: false });
 
       setMemos(memoData || []);
 
@@ -123,8 +123,8 @@ export default function AnnualSarabanReport() {
       const { data: outData } = await supabase
         .from('outgoing_docs')
         .select('id, doc_sequence, doc_number, doc_date, subject, to_agency, status')
-        .or(`doc_year.eq.${selectedYear}`)
-        .order('doc_sequence', { ascending: true });
+        .eq('doc_year', selectedYear)
+        .order('doc_sequence', { ascending: true, nullsFirst: false });
 
       setOutgoingDocs(outData || []);
 
@@ -132,8 +132,8 @@ export default function AnnualSarabanReport() {
       const { data: orderData, error: ordErr } = await supabase
         .from('orders')
         .select('id, doc_sequence, order_number, order_date, subject, issuer, status')
-        .or(`doc_year.eq.${selectedYear}`)
-        .order('doc_sequence', { ascending: true });
+        .eq('doc_year', selectedYear)
+        .order('doc_sequence', { ascending: true, nullsFirst: false });
 
       if (ordErr) {
         console.error('Error fetching orders for report:', ordErr);
@@ -954,6 +954,23 @@ export default function AnnualSarabanReport() {
           .break-after-page {
             page-break-after: always;
             break-after: page;
+          }
+          /* ป้องกันตาราง overflow A4 */
+          table {
+            table-layout: fixed !important;
+            width: 100% !important;
+            font-size: 10pt !important;
+          }
+          td, th {
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            white-space: normal !important;
+            vertical-align: top !important;
+            padding: 3pt 4pt !important;
+          }
+          /* ซ่อนคอลัมน์ที่ไม่จำเป็นในหน้า incoming */
+          .print-hide {
+            display: none !important;
           }
         }
       `}</style>
