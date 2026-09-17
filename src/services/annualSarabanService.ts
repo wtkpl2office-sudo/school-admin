@@ -67,7 +67,7 @@ export class AnnualSarabanService {
         return await this.fallbackWorkload(docYear);
       }
 
-      return (data as any[] || []).map(row => ({
+      const raw = (data as any[] || []).map(row => ({
         staffId: row.staff_id,
         staffName: row.staff_name,
         position: row.staff_position || row.position || 'ครูผู้สอน',
@@ -77,6 +77,20 @@ export class AnnualSarabanService {
         pendingCount: Number(row.pending_count || 0),
         completionRate: Number(row.completion_rate || 0)
       }));
+
+      // Deduplicate: เก็บเฉพาะ record ที่มีงานมากที่สุดต่อ 1 ชื่อ (กรณีชื่อซ้ำจาก 2 แหล่ง)
+      const bestByName = new Map<string, StaffWorkloadSummary>();
+      for (const item of raw) {
+        const key = item.staffName.trim();
+        const existing = bestByName.get(key);
+        if (!existing || item.totalAssigned > existing.totalAssigned) {
+          bestByName.set(key, item);
+        }
+      }
+
+      // กรองแถวที่มี 0 งาน AND ชื่อซ้ำออก (เก็บเฉพาะ unique ที่ไม่มีงานไว้ด้วย)
+      return Array.from(bestByName.values())
+        .sort((a, b) => b.totalAssigned - a.totalAssigned);
     } catch (err) {
       console.error('[AnnualSarabanService] Exception in getStaffWorkload:', err);
       return await this.fallbackWorkload(docYear);
