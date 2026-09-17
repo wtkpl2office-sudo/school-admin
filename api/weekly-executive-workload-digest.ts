@@ -29,7 +29,7 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    let result = await response.json();
+    let result: any = await response.json();
 
     // จัดการ Telegram HTTP 429 Rate Limit
     if (!result.ok && result.error_code === 429) {
@@ -42,7 +42,7 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
-        result = await response.json();
+        result = (await response.json()) as any;
       }
     }
 
@@ -56,7 +56,7 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      return await plainRes.json();
+      return (await plainRes.json()) as any;
     }
 
     return result;
