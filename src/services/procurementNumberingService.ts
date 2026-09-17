@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { DocumentNumberingService } from './documentNumberingService';
 
 export interface ProcurementNumberSequence {
   pcid: string;
@@ -130,19 +131,23 @@ export class ProcurementNumberingService {
   }
 
   /**
-   * เชื่อมโยงและดึงเลขบันทึกข้อความจากสมุดทะเบียน memos กลางของโรงเรียน
+   * เชื่อมโยงและดึงเลขบันทึกข้อความจากสมุดทะเบียน memos กลางของโรงเรียน (Unified Numbering)
    */
   static async reserveNextMemoNumber(fiscalYear: string = '2569', title: string, requesterName: string): Promise<{ memo_id: string; memo_number: string }> {
     try {
       const yearInt = parseInt(fiscalYear, 10) || 2569;
-      const { data: latest } = await supabase
-        .from('memos')
-        .select('doc_sequence, memo_number')
-        .eq('doc_year', yearInt)
-        .order('doc_sequence', { ascending: false })
-        .limit(1);
+      
+      // ขอเลขผ่านระบบรวมศูนย์ (ป้องกันเลขชนกับงานสารบรรณทั่วไป)
+      const numRes = await DocumentNumberingService.reserveNumber({
+        seriesCode: 'MEMO',
+        docYear: yearInt,
+        title,
+        requestedByName: requesterName,
+        channel: 'procurement',
+        autoIssue: true
+      });
 
-      const nextSeq = (latest && latest.length > 0 && latest[0].doc_sequence) ? latest[0].doc_sequence + 1 : 1;
+      const nextSeq = numRes.sequenceNumber;
       const memoNumber = `ที่ ศธ 04225/${nextSeq}`;
 
       // บันทึกรายการตั้งต้นในสมุด memos
@@ -164,6 +169,10 @@ export class ProcurementNumberingService {
         return { memo_id: '', memo_number: memoNumber };
       }
 
+      if (numRes.allocationId) {
+        DocumentNumberingService.confirmNumber(numRes.allocationId, 'memos', inserted.id).catch(() => {});
+      }
+
       return { memo_id: inserted.id, memo_number: memoNumber };
     } catch (e) {
       console.error('Error reserving memo number:', e);
@@ -172,19 +181,22 @@ export class ProcurementNumberingService {
   }
 
   /**
-   * เชื่อมโยงและดึงเลขคำสั่งโรงเรียนจากสมุดทะเบียน orders กลางของโรงเรียน
+   * เชื่อมโยงและดึงเลขคำสั่งโรงเรียนจากสมุดทะเบียน orders กลางของโรงเรียน (Unified Numbering)
    */
   static async reserveNextOrderNumber(fiscalYear: string = '2569', title: string): Promise<{ order_id: string; order_number: string }> {
     try {
       const yearInt = parseInt(fiscalYear, 10) || 2569;
-      const { data: latest } = await supabase
-        .from('orders')
-        .select('doc_sequence, order_number')
-        .eq('doc_year', yearInt)
-        .order('doc_sequence', { ascending: false })
-        .limit(1);
+      
+      // ขอเลขคำสั่งผ่านระบบรวมศูนย์
+      const numRes = await DocumentNumberingService.reserveNumber({
+        seriesCode: 'SCHOOL_ORDER',
+        docYear: yearInt,
+        title,
+        channel: 'procurement',
+        autoIssue: true
+      });
 
-      const nextSeq = (latest && latest.length > 0 && latest[0].doc_sequence) ? latest[0].doc_sequence + 1 : 1;
+      const nextSeq = numRes.sequenceNumber;
       const orderNumber = `คำสั่งที่ ${nextSeq}/${fiscalYear}`;
 
       // บันทึกรายการตั้งต้นในสมุด orders
@@ -204,6 +216,10 @@ export class ProcurementNumberingService {
 
       if (error || !inserted) {
         return { order_id: '', order_number: orderNumber };
+      }
+
+      if (numRes.allocationId) {
+        DocumentNumberingService.confirmNumber(numRes.allocationId, 'orders', inserted.id).catch(() => {});
       }
 
       return { order_id: inserted.id, order_number: orderNumber };

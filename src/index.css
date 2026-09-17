@@ -42,19 +42,30 @@
   }
 }
 
-/* Global Print Styles to fix PDF cuts and hidden elements in Electron */
+/* Global Print Styles to fix PDF cuts, hide sidebars, and expand content properly */
 @media print {
   aside, 
   header, 
+  nav,
   .print-hidden, 
-  .no-print {
+  .no-print,
+  [class*="print:hidden"] {
     display: none !important;
   }
 
-  html, body, #root, main, .min-h-screen, .flex-1, .overflow-y-auto, .custom-scrollbar, .max-w-7xl {
+  html, body, #root {
     height: auto !important;
     min-height: 0 !important;
-    max-height: none !important;
+    overflow: visible !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  main {
+    height: auto !important;
+    min-height: 0 !important;
     overflow: visible !important;
     position: static !important;
     display: block !important;
@@ -64,4 +75,21 @@
     background: white !important;
     box-shadow: none !important;
   }
+
+  main > div {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 10mm 15mm;
+  }
 }
+

@@ -32,6 +32,7 @@ import ServiceArea from './pages/ServiceArea';
 import Athletics from './pages/Athletics';
 import KnowledgeBase from './pages/KnowledgeBase';
 import StudentGradePortal from './pages/StudentGradePortal';
+import AnnualSarabanReport from './pages/AnnualSarabanReport';
 import IdentityFooter from './components/IdentityFooter';
 import ResetPasswordModal from './components/ResetPasswordModal';
 import ToastContainer from './components/ToastContainer';
@@ -69,12 +70,13 @@ import {
   XCircle,
   RefreshCw,
   Gamepad2,
-  MapPin
+  MapPin,
+  Award
 } from 'lucide-react';
 
 const { ipcRenderer } = (window as any).require ? (window as any).require('electron') : { ipcRenderer: null };
 
-type Tab = 'dashboard' | 'incoming' | 'outgoing' | 'orders' | 'memos' | 'students' | 'teachers' | 'tasks' | 'attendance' | 'attendance_report' | 'library' | 'wfh' | 'settings' | 'lec' | 'custom_print' | 'users' | 'academic' | 'finance' | 'reports' | 'profile' | 'ai_cowork' | 'knowledge_base' | 'free_education' | 'utilities' | 'ar_learning' | 'ar_admin' | 'service_area' | 'athletics' | 'grade_portal';
+type Tab = 'dashboard' | 'incoming' | 'outgoing' | 'orders' | 'memos' | 'students' | 'teachers' | 'tasks' | 'attendance' | 'attendance_report' | 'library' | 'wfh' | 'settings' | 'lec' | 'custom_print' | 'users' | 'academic' | 'finance' | 'reports' | 'profile' | 'ai_cowork' | 'knowledge_base' | 'free_education' | 'utilities' | 'ar_learning' | 'ar_admin' | 'service_area' | 'athletics' | 'grade_portal' | 'annual_saraban';
 
 
 function App() {
@@ -280,9 +282,9 @@ function App() {
   const canAccessAthletics = !isGuest && (isAdmin || isDirector || extraPerms.access_athletics);
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="min-h-screen flex bg-slate-50 print:block print:bg-white print:p-0">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen overflow-y-auto scrollbar-hide shrink-0 shadow-sm print:hidden">
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col sticky top-0 h-screen overflow-y-auto scrollbar-hide shrink-0 shadow-sm print:hidden print:!hidden">
         <div className="p-6 border-b border-slate-50 flex items-center gap-3 bg-white animate-in fade-in">
           <img src={schoolLogo || import.meta.env.VITE_SCHOOL_LOGO_PATH || "logo.png"} alt="School Logo" className="w-12 h-12 object-contain" />
           <div className="flex-1 min-w-0">
@@ -310,6 +312,7 @@ function App() {
               {canAccessRegistration && <SidebarItem icon={<Book size={20} />} label="คำสั่ง" active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} />}
               <SidebarItem icon={<MessageSquare size={20} />} label="บันทึกข้อความ" active={activeTab === 'memos'} onClick={() => setActiveTab('memos')} />
               <SidebarItem icon={<ClipboardList size={20} />} label="ติดตามงาน/สั่งการ" active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
+              <SidebarItem icon={<Award size={20} />} label="สรุปสารบรรณประจำปี" active={activeTab === 'annual_saraban'} onClick={() => setActiveTab('annual_saraban')} />
 
               <div className="py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mt-4 text-[9px]">นวัตกรรม AI</div>
               <SidebarItem icon={<Bot size={20} />} label="AI Cowork" active={activeTab === 'ai_cowork'} onClick={() => setActiveTab('ai_cowork')} />
@@ -388,8 +391,8 @@ function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 shadow-xs print:hidden">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible print:block print:w-full print:p-0">
+        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 shadow-xs print:hidden print:!hidden">
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 uppercase tracking-tight">
             {activeTab === 'dashboard' && 'แดชบอร์ด'}
             {activeTab === 'profile' && 'ข้อมูลส่วนตัวและลายเซ็น'}
@@ -420,6 +423,7 @@ function App() {
             {activeTab === 'ar_admin' && 'จัดการด่านบทเรียน น้องชบาพาพิชิต (AR)'}
             {activeTab === 'service_area' && 'เด็กในเขตพื้นที่บริการ (ทร.14)'}
             {activeTab === 'athletics' && 'งานลงทะเบียนนักกีฬา'}
+            {activeTab === 'annual_saraban' && 'รายงานสรุปงานสารบรรณประจำปี พ.ศ.'}
           </h2>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
@@ -438,8 +442,8 @@ function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">
+        <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 custom-scrollbar print:p-0 print:overflow-visible print:bg-white print:block print:w-full print:m-0">
+          <div className="max-w-7xl mx-auto print:max-w-none print:m-0 print:p-0 print:w-full">
             {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as Tab)} />}
             {activeTab === 'profile' && <ProfilePage />}
             {activeTab === 'reports' && <Reports />}
@@ -469,6 +473,7 @@ function App() {
             {activeTab === 'ar_admin' && <ARAdmin onBack={() => setActiveTab('academic')} />}
             {activeTab === 'service_area' && <ServiceArea />}
             {activeTab === 'athletics' && <Athletics />}
+            {activeTab === 'annual_saraban' && <AnnualSarabanReport />}
 
             
             <IdentityFooter schoolName={schoolName} schoolLogo={schoolLogo} localGovName={localGovName} />

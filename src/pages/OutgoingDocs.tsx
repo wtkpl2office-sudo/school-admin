@@ -17,7 +17,8 @@ import {
   X,
   Sparkles,
   CheckCircle,
-  Paperclip
+  Paperclip,
+  Inbox
 } from 'lucide-react';
 import garuda3cm from '../assets/saraban/garuda-3cm.png';
 import { generateAIDraft } from '../lib/aiService';
@@ -36,6 +37,7 @@ export default function OutgoingDocs() {
   const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState<any>(null);
   const [incomingDocs, setIncomingDocs] = useState<any[]>([]);
+  const [aiIncomingSearch, setAiIncomingSearch] = useState('');
 
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [selectedDocForApproval, setSelectedDocForApproval] = useState<any>(null);
@@ -91,8 +93,18 @@ export default function OutgoingDocs() {
   }
 
   async function fetchIncomingDocs() {
-    const { data } = await supabase.from('incoming_docs').select('*').order('created_at', { ascending: false }).limit(20);
-    setIncomingDocs(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('incoming_docs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (!error && data) {
+        setIncomingDocs(data);
+      }
+    } catch (err) {
+      console.error('Error fetching incoming docs for AI draft:', err);
+    }
   }
 
   async function fetchDocs(yearToFetch = selectedYear) {
@@ -885,6 +897,23 @@ ${userDetail}
     setAttachmentsList(newList);
   };
 
+  // กรองรายการหนังสือรับสำหรับโมดัล AI Draft
+  const filteredIncomingForAi = incomingDocs.filter(inc => {
+    if (!aiIncomingSearch.trim()) return true;
+    const q = aiIncomingSearch.toLowerCase().trim();
+    const docNo = String(inc.doc_number || inc.doc_sequence || '').toLowerCase();
+    const subject = String(inc.subject || '').toLowerCase();
+    const agency = String(inc.from_agency || '').toLowerCase();
+    let senderDocNo = '';
+    if (inc.remark) {
+      try {
+        const p = typeof inc.remark === 'string' ? JSON.parse(inc.remark) : inc.remark;
+        senderDocNo = String(p.sender_doc_number || p.sender_doc_no || '').toLowerCase();
+      } catch {}
+    }
+    return docNo.includes(q) || subject.includes(q) || agency.includes(q) || senderDocNo.includes(q);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center gap-4">
@@ -1055,26 +1084,80 @@ ${userDetail}
              </div>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">เลือกหนังสือรับอ้างถึง:</p>
-            <div className="max-h-[40vh] overflow-y-auto space-y-2 pr-2">
-              {incomingDocs.length === 0 ? (
-                <div className="py-10 text-center text-slate-400 italic">ไม่พบข้อมูลหนังสือรับ</div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                <Inbox size={14} className="text-brand-primary" /> เลือกหนังสือรับอ้างถึง:
+              </p>
+              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                พบ {filteredIncomingForAi.length} จาก {incomingDocs.length} เรื่อง
+              </span>
+            </div>
+
+            {/* ช่องค้นหาหนังสือรับ */}
+            <div className="relative">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text"
+                value={aiIncomingSearch}
+                onChange={e => setAiIncomingSearch(e.target.value)}
+                placeholder="ค้นหาจากเลขที่รับ, เลขหนังสือผู้ส่ง, ชื่อเรื่อง, หรือหน่วยงาน..."
+                className="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-white transition-all"
+              />
+              {aiIncomingSearch && (
+                <button 
+                  onClick={() => setAiIncomingSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* รายการหนังสือรับ */}
+            <div className="max-h-[45vh] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+              {filteredIncomingForAi.length === 0 ? (
+                <div className="py-10 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  {aiIncomingSearch ? `ไม่พบข้อมูลหนังสือรับที่ตรงกับคำค้นหา "${aiIncomingSearch}"` : 'ไม่พบข้อมูลหนังสือรับ'}
+                </div>
               ) : (
-                incomingDocs.map(inc => (
-                  <button 
-                    key={inc.id}
-                    onClick={() => handleAiDraft(inc)}
-                    className="w-full text-left p-4 bg-slate-50 hover:bg-brand-primary/5 border border-slate-100 rounded-2xl transition-all group"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">เลขที่รับ: {inc.doc_number}</span>
-                      <span className="text-[10px] font-bold text-slate-400">{formatDateDMY(inc.doc_date)}</span>
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-800 group-hover:text-brand-primary transition-colors">{inc.subject}</h4>
-                    <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">จาก: {inc.from_agency}</p>
-                  </button>
-                ))
+                filteredIncomingForAi.map(inc => {
+                  let senderDocNo = '';
+                  if (inc.remark) {
+                    try {
+                      const p = typeof inc.remark === 'string' ? JSON.parse(inc.remark) : inc.remark;
+                      senderDocNo = p.sender_doc_number || p.sender_doc_no || '';
+                    } catch {}
+                  }
+
+                  return (
+                    <button 
+                      key={inc.id}
+                      onClick={() => handleAiDraft(inc)}
+                      className="w-full text-left p-4 bg-slate-50 hover:bg-brand-primary/5 hover:border-brand-primary/30 border border-slate-200/80 rounded-2xl transition-all group cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start mb-1 gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] font-black text-brand-primary uppercase tracking-widest bg-brand-primary/10 px-2 py-0.5 rounded-md">
+                            เลขที่รับ: {inc.doc_number || inc.doc_sequence}
+                          </span>
+                          {senderDocNo && (
+                            <span className="text-[10px] font-bold text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-md">
+                              ที่: {senderDocNo}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 shrink-0">{formatDateDMY(inc.doc_date || inc.created_at)}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-800 group-hover:text-brand-primary transition-colors line-clamp-2">
+                        {inc.subject}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-1.5 font-medium flex items-center gap-1">
+                        <span className="font-bold text-slate-400">จาก:</span> {inc.from_agency || '-'}
+                      </p>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>

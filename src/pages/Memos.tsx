@@ -8,6 +8,7 @@ import { generateAIDraft } from '../lib/aiService';
 import { formatDateDMY } from '../lib/dateUtils';
 import Modal from '../components/Modal';
 import { DocVerificationBadge, DocVerificationCard } from '../components/DocVerificationCard';
+import { DocumentNumberingService } from '../services/documentNumberingService';
 
 import { 
   Search, 
@@ -587,16 +588,34 @@ export default function Memos() {
       const docDateObj = new Date(formData.memo_date);
       const docYear = docDateObj.getFullYear() + 543;
 
-      const { data: seqData } = await supabase
-        .from('memos')
-        .select('doc_sequence')
-        .eq('doc_year', docYear)
-        .order('doc_sequence', { ascending: false })
-        .limit(1);
-      
-      const startSeq = settings?.start_memo_seq || 1;
-      const docSeq = (seqData && seqData.length > 0) ? Math.max(Number(seqData[0].doc_sequence) + 1, startSeq) : startSeq;
-      const finalMemoNumber = formData.memo_number.trim() || `${docSeq}/${docYear}`;
+      let docSeq: number;
+      let finalMemoNumber = formData.memo_number.trim();
+      let allocId: string | undefined;
+
+      if (!finalMemoNumber) {
+        // ขอเลขจากระบบออกเลขรวมศูนย์ (Unified Numbering Architecture) ป้องกันเลขชนกัน 100%
+        const numRes = await DocumentNumberingService.reserveNumber({
+          seriesCode: 'MEMO',
+          docYear,
+          title: formData.subject,
+          requestedBy: user?.id,
+          requestedByName: formData.requester || profile?.display_name,
+          channel: 'web',
+          autoIssue: true
+        });
+        docSeq = numRes.sequenceNumber;
+        finalMemoNumber = numRes.formattedNumber;
+        allocId = numRes.allocationId;
+      } else {
+        const { data: seqData } = await supabase
+          .from('memos')
+          .select('doc_sequence')
+          .eq('doc_year', docYear)
+          .order('doc_sequence', { ascending: false })
+          .limit(1);
+        const startSeq = settings?.start_memo_seq || 1;
+        docSeq = (seqData && seqData.length > 0) ? Math.max(Number(seqData[0].doc_sequence) + 1, startSeq) : startSeq;
+      }
 
       const { data: insertedDocs, error } = await supabase.from('memos').insert([{ 
         memo_number: finalMemoNumber,
@@ -614,6 +633,11 @@ export default function Memos() {
 
       if (error) throw new Error(`บันทึกข้อมูลไม่สำเร็จ: ${error.message}`);
       const insertedDoc = insertedDocs?.[0];
+
+      // ยืนยันการผูกเลขเอกสารกับตาราง memos
+      if (allocId && insertedDoc?.id) {
+        DocumentNumberingService.confirmNumber(allocId, 'memos', insertedDoc.id).catch(() => {});
+      }
 
       // ดึงไลน์ ผอ. เพื่อเสนอตรง
       const { data: dirProfile } = await supabase
