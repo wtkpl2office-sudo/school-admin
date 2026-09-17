@@ -175,9 +175,32 @@ export default async function handler(req: Request | any, res?: any): Promise<Re
       });
     }
 
+    if (action === 'weekly-executive-digest' || action === 'executive-digest') {
+      const targetUrl = `${baseUrl}/api/weekly-executive-workload-digest?force=true${cronSecret ? `&secret=${cronSecret}` : ''}`;
+      const fetchHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (cronSecret) fetchHeaders['Authorization'] = `Bearer ${cronSecret}`;
+
+      const subRes = await fetch(targetUrl, { method: 'GET', headers: fetchHeaders });
+      const data = await subRes.json().catch(() => ({ statusText: subRes.statusText }));
+
+      const payload = {
+        success: subRes.ok,
+        triggeredAction: 'weekly-executive-digest',
+        targetUrl,
+        statusCode: subRes.status,
+        result: data
+      };
+
+      if (res?.status) return res.status(subRes.status).json(payload);
+      return new Response(JSON.stringify(payload, null, 2), {
+        status: subRes.status,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      });
+    }
+
     const payload = {
       success: false,
-      error: `ไม่พบ Action '${action}' กรุณาใช้ ?action=status หรือ ?action=director-digest`
+      error: `ไม่พบ Action '${action}' กรุณาใช้ ?action=status, ?action=director-digest หรือ ?action=weekly-executive-digest`
     };
     if (res?.status) return res.status(400).json(payload);
     return new Response(JSON.stringify(payload), { status: 400 });

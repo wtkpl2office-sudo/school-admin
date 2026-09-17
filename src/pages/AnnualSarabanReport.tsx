@@ -6,6 +6,7 @@ import {
   ChevronRight, AlertCircle, BarChart3, Filter, UserCheck
 } from 'lucide-react';
 import { AnnualSarabanService, type AnnualSarabanOverview, type StaffWorkloadSummary } from '../services/annualSarabanService';
+import * as XLSX from 'xlsx';
 import garuda15mm from '../assets/saraban/garuda-1.5cm.png';
 
 export default function AnnualSarabanReport() {
@@ -175,6 +176,114 @@ export default function AnnualSarabanReport() {
     window.print();
   };
 
+  // ส่งออกข้อมูลรายงานประจำปีเป็น Excel (.xlsx) ทุก Sheet
+  const handleExportExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // 1. Sheet สรุปภาพรวม
+      const overviewRows = [
+        ['รายงานสรุปผลการดำเนินงานสารบรรณอิเล็กทรอนิกส์ ประจำปี พ.ศ. ' + selectedYear],
+        ['หน่วยงาน:', schoolName],
+        ['วันที่ส่งออกข้อมูล:', new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })],
+        [''],
+        ['หมวดงานสารบรรณ', 'จำนวนรายการ (เรื่อง/ฉบับ)'],
+        ['1. ทะเบียนหนังสือรับ', overview.incomingCount],
+        ['2. ทะเบียนหนังสือส่ง', outgoingDocs.length || overview.outgoingCount],
+        ['3. บันทึกข้อความภายใน', memos.length || overview.memoCount],
+        ['4. ทะเบียนคำสั่งโรงเรียน', orders.length || overview.orderCount],
+        ['รวมทั้งสิ้น', overview.totalCount]
+      ];
+      const wsOverview = XLSX.utils.aoa_to_sheet(overviewRows);
+      XLSX.utils.book_append_sheet(wb, wsOverview, 'สรุปภาพรวม');
+
+      // 2. Sheet สรุปภาระงานครู (Staff Workload)
+      if (workloadList && workloadList.length > 0) {
+        const workloadRows = workloadList.map((item, idx) => ({
+          'ลำดับ': idx + 1,
+          'ชื่อ-สกุล': item.staffName,
+          'ตำแหน่ง': item.position,
+          'กลุ่มงาน/ฝ่าย': item.department,
+          'หนังสือที่ได้รับมอบหมาย (เรื่อง)': item.totalAssigned,
+          'ดำเนินการแล้ว (เรื่อง)': item.completedCount,
+          'รอดำเนินการ (เรื่อง)': item.pendingCount,
+          'ร้อยละความสำเร็จ (%)': item.completionRate
+        }));
+        const wsWorkload = XLSX.utils.json_to_sheet(workloadRows);
+        XLSX.utils.book_append_sheet(wb, wsWorkload, 'สรุปภาระงานครู');
+      }
+
+      // 3. Sheet ทะเบียนหนังสือรับ
+      if (incomingDocs && incomingDocs.length > 0) {
+        const incRows = incomingDocs.map(doc => {
+          const parsed = parseSenderInfo(doc.remark);
+          const assigneeNames = doc.doc_assignments?.map((a: any) => 
+            a.teachers ? `${a.teachers.prefix || ''}${a.teachers.first_name} ${a.teachers.last_name}`.trim() : '-'
+          ).filter(Boolean).join(', ') || '-';
+
+          return {
+            'ทะเบียนรับ': doc.doc_sequence,
+            'วันที่รับ': formatThaiDate(doc.doc_date || doc.created_at),
+            'เลขที่หนังสือ': parsed.senderDocNo || doc.doc_number || '-',
+            'ลงวันที่': parsed.senderDocDate ? formatThaiDate(parsed.senderDocDate) : '-',
+            'จาก': doc.from_agency || '-',
+            'เรื่อง': doc.subject || '-',
+            'ความเร่งด่วน': doc.urgency || 'ปกติ',
+            'ผู้รับมอบหมาย': assigneeNames,
+            'สถานะ': doc.status === 'completed' ? 'เสร็จสิ้น' : 'กำลังดำเนินการ'
+          };
+        });
+        const wsInc = XLSX.utils.json_to_sheet(incRows);
+        XLSX.utils.book_append_sheet(wb, wsInc, 'ทะเบียนหนังสือรับ');
+      }
+
+      // 4. Sheet บันทึกข้อความ
+      if (memos && memos.length > 0) {
+        const memoRows = memos.map(m => ({
+          'เลขที่บันทึก': m.memo_number || `${m.doc_sequence}/${selectedYear}`,
+          'วันที่': formatThaiDate(m.memo_date || m.created_at),
+          'เรื่อง': m.subject || '-',
+          'ผู้เสนอ': m.requester || '-',
+          'กลุ่มงาน/หน่วยงาน': m.department || '-',
+          'สถานะ': m.status || 'อนุมัติ/ลงนามแล้ว'
+        }));
+        const wsMemo = XLSX.utils.json_to_sheet(memoRows);
+        XLSX.utils.book_append_sheet(wb, wsMemo, 'บันทึกข้อความ');
+      }
+
+      // 5. Sheet หนังสือส่ง
+      if (outgoingDocs && outgoingDocs.length > 0) {
+        const outRows = outgoingDocs.map(o => ({
+          'ทะเบียนส่ง': o.doc_sequence || o.doc_number,
+          'วันที่': formatThaiDate(o.doc_date || o.created_at),
+          'ถึงหน่วยงาน': o.to_agency || '-',
+          'เรื่อง': o.subject || '-',
+          'สถานะ': o.status || 'ส่งแล้ว'
+        }));
+        const wsOut = XLSX.utils.json_to_sheet(outRows);
+        XLSX.utils.book_append_sheet(wb, wsOut, 'ทะเบียนหนังสือส่ง');
+      }
+
+      // 6. Sheet คำสั่งโรงเรียน
+      if (orders && orders.length > 0) {
+        const orderRows = orders.map(ord => ({
+          'เลขที่คำสั่ง': ord.order_number || `${ord.doc_sequence}/${selectedYear}`,
+          'วันที่ลงนาม': formatThaiDate(ord.order_date || ord.created_at),
+          'เรื่อง': ord.subject || '-',
+          'สถานะ': ord.status || 'ประกาศแล้ว'
+        }));
+        const wsOrder = XLSX.utils.json_to_sheet(orderRows);
+        XLSX.utils.book_append_sheet(wb, wsOrder, 'คำสั่งโรงเรียน');
+      }
+
+      const fileName = `รายงานสารบรรณประจำปี_${selectedYear}_${schoolName}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error('Export Excel failed:', err);
+      alert('เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel');
+    }
+  };
+
   const schoolName = settings?.school_name || 'โรงเรียนบ้านควนโคกยา';
 
   // แปลงตัวเลขเป็นเลขไทยสำหรับเอกสารทางการ
@@ -256,6 +365,16 @@ export default function AnnualSarabanReport() {
               title="รีเฟรชข้อมูล"
             >
               <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
+            </button>
+
+            {/* ปุ่มส่งออก Excel (.xlsx) */}
+            <button 
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
+              title="ส่งออกรายงานและทะเบียนทั้งหมดเป็นไฟล์ Excel (.xlsx)"
+            >
+              <Download className="w-4 h-4" />
+              <span>ส่งออก Excel</span>
             </button>
 
             {/* ปุ่มพิมพ์ชุดรายงาน A4 */}

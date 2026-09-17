@@ -385,7 +385,7 @@ function buildThaiDocOrFilter(searchWord: string, numberCol: string = 'doc_numbe
   }
 
   termArr.forEach(t => {
-    filters.push(`subject.ilike.%${t}%`, `${numberCol}.ilike.%${t}%`);
+    filters.push(`subject.ilike.%${t}%`, `${numberCol}.ilike.%${t}%`, `remark.ilike.%${t}%`);
   });
 
   return filters.join(',');
@@ -4212,6 +4212,73 @@ export default async function handler(req: any, res: any) {
         }
 
         await sendTelegramMessage(botToken, chatId, noticeMsg);
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── คำสั่งด่วน: สรุปภาพรวมสารบรรณและภาระงานสำหรับผู้บริหาร ──
+      if (
+        normCmd === '/สรุปผู้บริหาร' || normCmd === 'สรุปผู้บริหาร' ||
+        normCmd === '/สรุปสารบรรณ' || normCmd === 'สรุปสารบรรณ' ||
+        normCmd === '/สรุปประจำสัปดาห์' || normCmd === 'สรุปประจำสัปดาห์' ||
+        normCmd === '/สรุปงาน' || normCmd === 'สรุปงาน'
+      ) {
+        const [incRes, outRes, memoRes, ordRes] = await Promise.all([
+          supabase.from('incoming_docs').select('*', { count: 'exact', head: true }).eq('doc_year', docYearNum),
+          supabase.from('outgoing_docs').select('*', { count: 'exact', head: true }).eq('doc_year', docYearNum),
+          supabase.from('memos').select('*', { count: 'exact', head: true }).eq('doc_year', docYearNum),
+          supabase.from('orders').select('*', { count: 'exact', head: true }).eq('doc_year', docYearNum)
+        ]);
+
+        const incCount = incRes.count || 0;
+        const outCount = outRes.count || 0;
+        const memoCount = memoRes.count || 0;
+        const ordCount = ordRes.count || 0;
+        const totalCount = incCount + outCount + memoCount + ordCount;
+
+        const { data: pendingDocs, count: pCount } = await supabase
+          .from('incoming_docs')
+          .select('id, doc_sequence, subject, from_agency')
+          .in('status', ['pending', 'waiting_proposal'])
+          .limit(3);
+
+        const schoolName = settings?.school_name || 'โรงเรียนบ้านควนโคกยา';
+        const nowTh = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', year: 'numeric', month: 'long', day: 'numeric' });
+
+        let summaryMsg = `📊 <b>[รายงานสรุปภาพรวมสารบรรณอิเล็กทรอนิกส์]</b>\n`;
+        summaryMsg += `🏛 <b>${escapeHtml(schoolName)}</b>\n`;
+        summaryMsg += `🗓 ข้อมูล ณ วันที่ ${escapeHtml(nowTh)} (ปี พ.ศ. ${docYearNum})\n`;
+        summaryMsg += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        summaryMsg += `📈 <b>สถิติงานสารบรรณ 4 หมวด:</b>\n`;
+        summaryMsg += `• 📥 ทะเบียนรับ: <b>${incCount}</b> เรื่อง\n`;
+        summaryMsg += `• 📤 ทะเบียนส่ง: <b>${outCount}</b> เรื่อง\n`;
+        summaryMsg += `• 📝 บันทึกข้อความ: <b>${memoCount}</b> ฉบับ\n`;
+        summaryMsg += `• 📜 คำสั่งโรงเรียน: <b>${ordCount}</b> ฉบับ\n`;
+        summaryMsg += `👉 <b>รวมทั้งสิ้น: ${totalCount} รายการ</b>\n\n`;
+
+        if (pCount && pCount > 0) {
+          summaryMsg += `⏳ <b>หนังสือรอ ผอ. เกษียณสั่งการ (${pCount} เรื่อง):</b>\n`;
+          pendingDocs?.forEach((d, i) => {
+            summaryMsg += `${i + 1}. [รับที่ ${d.doc_sequence}] ${escapeHtml(d.subject?.slice(0, 45))}\n`;
+          });
+          summaryMsg += `\n`;
+        } else {
+          summaryMsg += `✅ <i>ไม่มีหนังสือค้างรอเกษียณสั่งการ</i>\n\n`;
+        }
+
+        summaryMsg += `💡 คุณครูและผู้บริหารสามารถเปิดดูชุดรายงานประจำปี A4 พร้อมบันทึกปะหน้า และส่งออก Excel ได้ที่ลิงก์ด้านล่างค่ะ 🌸`;
+
+        const replyMarkup = {
+          inline_keyboard: [
+            [
+              {
+                text: '📑 เปิดดูชุดรายงานประจำปี A4 & ส่งออก Excel',
+                url: 'https://school-admin-psi.vercel.app/annual-report'
+              }
+            ]
+          ]
+        };
+
+        await sendTelegramMessage(botToken, chatId, summaryMsg, replyMarkup);
         return res.status(200).json({ ok: true });
       }
     }

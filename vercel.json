@@ -15,6 +15,10 @@
       "schedule": "0 1 * * 1-5"
     },
     {
+      "path": "/api/weekly-executive-workload-digest",
+      "schedule": "30 0 * * 1"
+    },
+    {
       "path": "/api/weekly-backup",
       "schedule": "0 0 * * 0"
     }
