@@ -34,7 +34,6 @@ export class AnnualSarabanService {
       });
 
       if (error) {
-        console.warn('[AnnualSarabanService] RPC overview error, using fallback:', error);
         return await this.fallbackOverview(docYear);
       }
 

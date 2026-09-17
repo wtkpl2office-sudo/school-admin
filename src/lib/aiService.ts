@@ -69,15 +69,16 @@ export async function callGeminiAPI(
   let modelsToTry = await getAvailableModels(keys[0]);
   if (modelsToTry.length === 0) {
     modelsToTry = [
+      "gemini-3.5-flash",
       "gemini-2.5-flash",
-      "gemini-3.1-pro-preview",
-      "gemini-pro-latest",
+      "gemini-2.0-flash",
+      "gemini-3.5-flash-lite",
       "gemini-2.5-flash-lite",
-      "gemini-flash-latest"
+      "gemini-flash-lite-latest"
     ];
   }
 
-  const apiVersions = ["v1beta", "v1"];
+  const apiVersions = ["v1beta"];
   let lastError: any = null;
 
   for (let attempt = 0; attempt < totalAttempts; attempt++) {
@@ -186,13 +187,15 @@ export async function extractProjectsFromKnowledge(apiKey: string, academicYear:
     let modelsToTry = await getAvailableModels(apiKey);
     if (modelsToTry.length === 0) {
       modelsToTry = [
+        "gemini-3.5-flash",
+        "gemini-2.5-flash",
         "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro"
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-flash-lite",
+        "gemini-flash-lite-latest"
       ];
     }
-    const apiVersions = ["v1beta", "v1"];
+    const apiVersions = ["v1beta"];
     const keys = getApiKeyList(apiKey);
     if (keys.length === 0) return [];
 
@@ -300,13 +303,17 @@ export async function getAvailableModels(apiKey: string): Promise<string[]> {
   const keys = getApiKeyList(apiKey);
   if (keys.length === 0) return [];
   
-  // โมเดลหลักทางการของ Google Gemini API ที่แนะนำและเสถียรที่สุดสำหรับสร้างข้อความ (รองรับทั้ง Pro และ Flash)
+  // โมเดลหลักทางการของ Google Gemini API ที่เสถียรและโควตาสูงสุดสำหรับสกัดข้อความและ OCR (Flash family)
   const RECOMMENDED_MODELS = [
+    'gemini-3.5-flash',
     'gemini-2.5-flash',
-    'gemini-3.1-pro-preview',
-    'gemini-pro-latest',
+    'gemini-2.0-flash',
+    'gemini-3.5-flash-lite',
     'gemini-2.5-flash-lite',
-    'gemini-flash-latest'
+    'gemini-2.0-flash-lite',
+    'gemini-flash-lite-latest',
+    'gemini-3.8-flash',
+    'gemini-3.1-flash-lite'
   ];
   
   for (const key of keys) {
@@ -369,14 +376,16 @@ export async function summarizeDocument(pdfBuffer: ArrayBuffer, apiKey?: string)
       let modelsToTry = await getAvailableModels(apiKey);
       if (modelsToTry.length === 0) {
         modelsToTry = [
+          "gemini-3.5-flash",
+          "gemini-2.5-flash",
           "gemini-2.0-flash",
-          "gemini-2.0-flash-lite",
-          "gemini-1.5-flash",
-          "gemini-1.5-pro"
+          "gemini-3.5-flash-lite",
+          "gemini-2.5-flash-lite",
+          "gemini-flash-lite-latest"
         ];
       }
 
-      const apiVersions = ["v1beta", "v1"];
+      const apiVersions = ["v1beta"];
 
       const prompt = `คุณคือผู้ช่วยงานสารบรรณโรงเรียน จงวิเคราะห์หนังสือราชการนี้และสกัดข้อมูลออกมาเป็น JSON format เท่านั้น โดยมีฟิลด์ดังนี้:
       {
@@ -621,10 +630,10 @@ export async function processDocumentToKnowledge(
   if (chunks.length === 0) {
     try {
       // 1. ค้นหาโมเดล Vision ที่รองรับจริง (อัปเดตให้รองรับรุ่นใหม่)
-      let visionModel = "gemini-2.0-flash"; 
+      let visionModel = "gemini-3.5-flash"; 
       try {
         const models = await getAvailableModels(apiKey);
-        const found = models.find(name => name.includes('gemini-2.0-flash') || name.includes('gemini-1.5-flash'));
+        const found = models.find(name => name.includes('3.5-flash') || name.includes('2.5-flash') || name.includes('2.0-flash'));
         if (found) visionModel = found;
       } catch (e) {
         console.warn("OCR: Failed to list models, using default...");
@@ -634,7 +643,7 @@ export async function processDocumentToKnowledge(
       if (keys.length === 0) throw new Error("กรุณาตั้งค่า Gemini API Key");
 
       // 2. ประมวลผลทีละ 1 หน้า เพื่อความเสถียรสูงสุด (รองรับโควตา 15 RPM)
-      const apiVersions = ["v1beta", "v1"];
+      const apiVersions = ["v1beta"];
       
       for (let p = 1; p <= totalPages; p++) {
         let successPage = false;
@@ -939,10 +948,10 @@ export async function processPrivateDocumentToKnowledge(
   // Fallback OCR (หากไม่พบข้อความดึงออกมาเลย เช่น สแกน PDF)
   if (chunks.length === 0) {
     try {
-      let visionModel = "gemini-2.0-flash";
+      let visionModel = "gemini-3.5-flash";
       try {
         const models = await getAvailableModels(apiKey);
-        const found = models.find(name => name.includes('gemini-2.0-flash') || name.includes('gemini-1.5-flash'));
+        const found = models.find(name => name.includes('3.5-flash') || name.includes('2.5-flash') || name.includes('2.0-flash'));
         if (found) visionModel = found;
       } catch (e) {
         console.warn("Private OCR: Failed to list models, using default...");
@@ -951,7 +960,7 @@ export async function processPrivateDocumentToKnowledge(
       const keys = getApiKeyList(apiKey);
       if (keys.length === 0) throw new Error("กรุณาตั้งค่า Gemini API Key");
 
-      const apiVersions = ["v1beta", "v1"];
+      const apiVersions = ["v1beta"];
       for (let p = 1; p <= totalPages; p++) {
         let successPage = false;
         let retryCount = 0;
