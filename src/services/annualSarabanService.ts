@@ -58,50 +58,48 @@ export class AnnualSarabanService {
    */
   static async getStaffWorkload(docYear: number): Promise<StaffWorkloadSummary[]> {
     try {
-      // 1. ดึง profiles (master list — 1 row ต่อ 1 account จริง) + teachers join ด้วย email
-      const [profilesRes, teachersRes, assignRes] = await Promise.all([
-        supabase.from('profiles').select('id, display_name, email, role, status').eq('status', 'active'),
-        supabase.from('teachers').select('email, prefix, first_name, last_name, position, department'),
-        supabase.from('doc_assignments')
+      // 1. ดึงรายชื่อครูและบุคลากรจากตาราง teachers (ตัวจริง 14 ท่านของโรงเรียน ไม่ซ้ำ)
+      // 2. ดึงคำสั่งมอบหมายงาน doc_assignments ของปีที่เลือก
+      const [teachersRes, assignRes] = await Promise.all([
+        supabase
+          .from('teachers')
+          .select('id, prefix, first_name, last_name, position, department, status')
+          .order('first_name', { ascending: true }),
+        supabase
+          .from('doc_assignments')
           .select('assignee_id, status, incoming_docs!inner(doc_year)')
           .eq('incoming_docs.doc_year', docYear)
       ]);
 
-      const profiles = profilesRes.data || [];
       const teachers = teachersRes.data || [];
       const assignments = assignRes.data || [];
 
-      // 2. Map email → teacher info
-      const teacherByEmail = new Map<string, any>();
-      teachers.forEach(t => {
-        if (t.email) teacherByEmail.set(t.email.toLowerCase(), t);
-      });
-
-      // 3. นับงานต่อ assignee_id
-      const statsById = new Map<string, { total: number; completed: number; pending: number }>();
+      // 3. รวมสถิติตาม assignee_id (ซึ่งผูกกับ teachers.id)
+      const statsMap = new Map<string, { total: number; completed: number; pending: number }>();
       (assignments as any[]).forEach((a: any) => {
-        const id = a.assignee_id;
-        if (!id) return;
-        const s = statsById.get(id) || { total: 0, completed: 0, pending: 0 };
+        const tId = a.assignee_id;
+        if (!tId) return;
+        const s = statsMap.get(tId) || { total: 0, completed: 0, pending: 0 };
         s.total += 1;
-        if (['reported', 'acknowledged', 'completed'].includes(a.status)) s.completed += 1;
-        else s.pending += 1;
-        statsById.set(id, s);
+        if (['reported', 'acknowledged', 'completed'].includes(a.status)) {
+          s.completed += 1;
+        } else {
+          s.pending += 1;
+        }
+        statsMap.set(tId, s);
       });
 
-      // 4. สร้าง result จาก profiles (ไม่ซ้ำแน่นอน)
-      const result: StaffWorkloadSummary[] = profiles.map(p => {
-        const t = teacherByEmail.get(p.email?.toLowerCase() || '');
-        const fullName = t
-          ? `${t.prefix || ''}${t.first_name} ${t.last_name || ''}`.trim()
-          : p.display_name || p.email || 'ไม่ระบุชื่อ';
-        const s = statsById.get(p.id) || { total: 0, completed: 0, pending: 0 };
+      // 4. สร้างสรุปภาระงานรายบุคคลของครูแต่ละท่าน
+      const result: StaffWorkloadSummary[] = teachers.map(t => {
+        const rawName = `${t.prefix || ''}${t.first_name} ${t.last_name || ''}`.trim();
+        const cleanName = rawName.replace(/\s+/g, ' ');
+        const s = statsMap.get(t.id) || { total: 0, completed: 0, pending: 0 };
         const rate = s.total > 0 ? Math.round((s.completed / s.total) * 1000) / 10 : 0;
         return {
-          staffId: p.id,
-          staffName: fullName,
-          position: t?.position || (p.role === 'admin' ? 'ผู้ดูแลระบบ' : 'บุคลากร'),
-          department: t?.department || 'ทั่วไป',
+          staffId: t.id,
+          staffName: cleanName,
+          position: t.position || 'ครู',
+          department: t.department || 'ทั่วไป',
           totalAssigned: s.total,
           completedCount: s.completed,
           pendingCount: s.pending,
@@ -109,6 +107,7 @@ export class AnnualSarabanService {
         };
       });
 
+      // 5. เรียงตามยอดงานที่ได้รับมอบหมายมากที่สุดไปหาน้อยที่สุด
       return result.sort((a, b) => b.totalAssigned - a.totalAssigned);
 
     } catch (err) {

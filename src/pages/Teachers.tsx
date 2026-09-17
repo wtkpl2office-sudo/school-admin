@@ -120,6 +120,15 @@ export default function Teachers() {
         if (error) throw error;
       }
 
+      // ซิงก์ชื่อเต็มไปยังตาราง profiles (จัดการสิทธิ์) อัตโนมัติถ้ามีอีเมลตรงกัน
+      if (payload.email) {
+        const fullOfficialName = `${payload.prefix || ''}${payload.first_name} ${payload.last_name || ''}`.trim().replace(/\s+/g, ' ');
+        await supabase
+          .from('profiles')
+          .update({ display_name: fullOfficialName })
+          .eq('email', payload.email.trim());
+      }
+
       setIsModalOpen(false);
       resetForm();
       fetchTeachers();
