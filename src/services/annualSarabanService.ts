@@ -78,18 +78,33 @@ export class AnnualSarabanService {
         completionRate: Number(row.completion_rate || 0)
       }));
 
-      // Deduplicate: เก็บเฉพาะ record ที่มีงานมากที่สุดต่อ 1 ชื่อ (กรณีชื่อซ้ำจาก 2 แหล่ง)
-      const bestByName = new Map<string, StaffWorkloadSummary>();
+      // ฟังก์ชัน normalize ชื่อ: ตัดคำนำหน้า (นาย/นางสาว/นาง/ด.ช./ด.ญ.) ออก เพื่อ match ชื่อซ้ำ
+      const normalizeName = (name: string) => 
+        name.trim()
+          .replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|Mr\.|Mrs\.|Ms\.)\s*/u, '')
+          .toLowerCase();
+
+      // Step 1: dedup ด้วย staffId — เก็บที่มีงานมากกว่า
+      const byId = new Map<string, StaffWorkloadSummary>();
       for (const item of raw) {
-        const key = item.staffName.trim();
-        const existing = bestByName.get(key);
+        const key = item.staffId || item.staffName;
+        const existing = byId.get(key);
         if (!existing || item.totalAssigned > existing.totalAssigned) {
-          bestByName.set(key, item);
+          byId.set(key, item);
         }
       }
 
-      // กรองแถวที่มี 0 งาน AND ชื่อซ้ำออก (เก็บเฉพาะ unique ที่ไม่มีงานไว้ด้วย)
-      return Array.from(bestByName.values())
+      // Step 2: dedup ด้วยชื่อ normalize — กรณีคนเดียวมี 2 account (staffId ต่างกัน)
+      const byName = new Map<string, StaffWorkloadSummary>();
+      for (const item of Array.from(byId.values())) {
+        const key = normalizeName(item.staffName);
+        const existing = byName.get(key);
+        if (!existing || item.totalAssigned > existing.totalAssigned) {
+          byName.set(key, item);
+        }
+      }
+
+      return Array.from(byName.values())
         .sort((a, b) => b.totalAssigned - a.totalAssigned);
     } catch (err) {
       console.error('[AnnualSarabanService] Exception in getStaffWorkload:', err);
